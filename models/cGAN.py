@@ -119,7 +119,7 @@ class ConditionalGAN(GANBaseModel):
         for idx, image in enumerate(fake_images):
             path = os.path.join(test_dir, 'epo_{0}_cat_{1}.jpg'.format(epoch_num, categories[idx]))
             image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-            cv2.imwrite(path, image)
+            cv2.imwrite(path, 127.5*(image + 1))
         return
 
     def consumer(self, q, batch_num, train_res):
