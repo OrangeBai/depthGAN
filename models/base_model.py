@@ -11,6 +11,57 @@ import os
 
 
 class BaseModel:
+    def __init__(self):
+        self.model = None
+        self.reset_args = None
+        self._lr_schedule = static_learning_rate  # Learning rate schedule
+
+    def build_model(self, *args, **kwargs):
+        self.reset_args = [args, kwargs]
+
+    def train_epoch(self, batch_num, train_gen, *args, **kwargs):
+        start_time = time.time()
+        metrics_name = self.model.metrics_names
+        metrics_num = len(metrics_name)
+
+        train_res = np.zeros((batch_num, metrics_num))
+
+        q = Queue(10)
+
+        producer = Thread(target=self.producer, args=(q, batch_num, train_gen))
+        consumer = Thread(target=self.consumer, args=(q, batch_num, train_res))
+        producer.start()
+        consumer.start()
+        producer.join()
+        consumer.join()
+
+        train_res = train_res.mean(axis=0)
+        print('Train time: {0}'.format(time.time() - start_time))
+        log = 'Train - '
+        for idx, name in enumerate(metrics_name):
+            log += '{0}: {1} - '.format(name, train_res[idx])
+        print(log)
+
+        return train_res, metrics_name
+
+    @staticmethod
+    def producer(q, batch_num, gen):
+        for j in range(batch_num):
+            x = next(gen)
+            q.put(x)
+        q.put([None, None])
+
+    def consumer(self, q, batch_num, train_res):
+        pass
+
+    def save_model(self, weights_dir, name):
+        pass
+
+    def load_model(self, weights_dir, name):
+        pass
+
+
+class GANBaseModel(BaseModel):
     """
     Base Model
     """
@@ -19,19 +70,13 @@ class BaseModel:
         """
         Initialization method
         """
+        super().__init__()
         self.generator = None  # Model
         self.discriminator = None
-        self.model = None
-        self.result = None  # Training Result
-        self.reset_args = None  # Arguments for reset the model
 
         self._init_rate_d = None
         self._init_rate_g = None
-        self._lr_schedule = static_learning_rate  # Learning rate schedule
         self._loss = None  # Loss
-
-    def build_model(self, *args, **kwargs):
-        self.reset_args = [args, kwargs]
 
     def compile(self, init_rate_d, init_rate_g, metrics=None, lr_schedule=static_learning_rate):
         """
@@ -57,7 +102,7 @@ class BaseModel:
         optimizer_g.learning_rate = learning_rate_fn_g
         self.model.compile(optimizer=optimizer_g, loss=binary_crossentropy, metrics=metrics)
 
-    def train_epoch(self, batch_num, train_gen):
+    def train_epoch(self, batch_num, train_gen, *args, **kwargs):
         start_time = time.time()
         metrics_name = self.model.metrics_names
         metrics_num = len(metrics_name)
@@ -118,16 +163,4 @@ class BaseModel:
         self.discriminator.load_weights(path_d, by_name=True)
         return
 
-    @staticmethod
-    def producer(q, batch_num, gen):
-        for j in range(batch_num):
-            x = next(gen)
-            q.put(x)
-        q.put([None, None])
 
-    def consumer(self, q, batch_num, train_res):
-        for j in range(batch_num):
-            x_train, y_train = q.get()
-            if x_train is None:
-                break
-            train_res[j, :] = self.model.train_on_batch(np.array(x_train), np.array(y_train))

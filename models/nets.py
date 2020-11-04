@@ -16,7 +16,8 @@ def dense_layer(input_layer, units, activation='LeakyReLU', batch_norm=True, **k
     return x
 
 
-def conv_layer(x, filters, kernel_size, strides=(1, 1), padding='same', activation='LeakyReLU', batch_norm=True, **kwargs):
+def conv_layer(x, filters, kernel_size, strides=(1, 1), padding='same', activation='LeakyReLU', batch_norm=True,
+               **kwargs):
     x = Conv2D(filters, kernel_size, strides=strides, padding=padding, **kwargs)(x)
     if batch_norm:
         x = BatchNormalization()(x)
@@ -87,6 +88,57 @@ def res_block(input_tensor, filters, stride, block_name, identity_block, activat
         else:
             x = Activation(activation)(x)
 
+    return x
+
+
+def bn_transpose_block(input_tensor, filters, stride, activation, block_name, identity_block, **kwargs):
+    """
+    bottle net block for ResNet
+    Bottle net block for ResNet
+    :param input_tensor: Input tensor
+    :param filters:
+    :param stride:
+    :param activation:
+    :param block_name: block name
+    :param identity_block: If True, set as identity block
+    :return:
+    """
+    shortcut = input_tensor
+    x = conv_transpose_layer(input_tensor,
+                             filters=filters,
+                             kernel_size=(1, 1),
+                             strides=stride,
+                             activation=activation,
+                             name=block_name + '_Conv1',
+                             **kwargs)
+    x = conv_transpose_layer(x,
+                             filters=filters,
+                             kernel_size=(3, 3),
+                             activation=activation,
+                             name=block_name + '_Conv2',
+                             **kwargs)
+    x = conv_transpose_layer(x,
+                             filters=filters * 2,
+                             kernel_size=(1, 1),
+                             activation=None,
+                             name=block_name + '_Conv3',
+                             **kwargs)
+
+    if not identity_block:
+        shortcut = conv_transpose_layer(shortcut,
+                                        filters=filters * 2,
+                                        kernel_size=(1, 1),
+                                        strides=stride,
+                                        activation=None,
+                                        name=block_name + '_shortcut',
+                                        **kwargs)
+
+    x = Add()([x, shortcut])
+
+    if activation == 'LeakyReLU':
+        x = LeakyReLU(alpha=0.1)(x)
+    else:
+        x = Activation(activation)(x)
     return x
 
 

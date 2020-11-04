@@ -2,15 +2,17 @@ from models.nets import *
 from models.base_model import *
 from models.backbone import *
 from numpy.random import random, randint
+import cv2
 
 
-class ConditionalGAN(BaseModel):
-    def __init__(self, input_shape, image_shape, class_number):
+class ConditionalGAN(GANBaseModel):
+    def __init__(self, input_shape, image_shape, class_number, batch_size=32):
         super().__init__()
         self.input_shape = input_shape
         self.dense_units = int(np.prod(self.input_shape))
         self.image_shape = image_shape
         self.class_number = class_number
+        self.batch_size = batch_size
 
     def build_model(self, *args, **kwargs):
         """
@@ -81,7 +83,7 @@ class ConditionalGAN(BaseModel):
         self.discriminator = Model([input_tensor, label_tensor], output_real)
         return
 
-    def train_epoch(self, batch_num, train_gen):
+    def train_epoch(self, batch_num, train_gen, *args, **kwargs):
         start_time = time.time()
 
         train_res_names = ['real_patch_d', 'real_img_d',
@@ -107,6 +109,19 @@ class ConditionalGAN(BaseModel):
 
         return train_res, train_res_names
 
+    def test_model(self, test_dir, epoch_num, categories):
+        if not os.path.exists(test_dir):
+            os.makedirs(test_dir)
+        noise = np.random.random((self.class_number, self.dense_units // 2))
+        fake_categories = [i for i in range(self.class_number)]
+        fake_labels = tf.keras.utils.to_categorical(fake_categories, num_classes=self.class_number)
+        fake_images = self.generator.predict_on_batch([noise, fake_labels])
+        for idx, image in enumerate(fake_images):
+            path = os.path.join(test_dir, 'epo_{0}_cat_{1}.jpg'.format(epoch_num, categories[idx]))
+            image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+            cv2.imwrite(path, image)
+        return
+
     def consumer(self, q, batch_num, train_res):
         for j in range(batch_num):
             x_train, y_train = q.get()
@@ -115,8 +130,8 @@ class ConditionalGAN(BaseModel):
             self.discriminator.trainable = True
 
             batch_size = x_train.shape[0]
-            if batch_size > 32:
-                batch_size = 32
+            if batch_size > self.batch_size:
+                batch_size = self.batch_size
             real_patch = 0.75 + 0.25 * np.random.random((batch_size, 8, 8, 1))
             real_gt = 0.75 + 0.25 * np.random.random((batch_size, 1))
             # real_loss = self.discriminator.train_on_batch([x_train[:batch_size], y_train[:batch_size]],
