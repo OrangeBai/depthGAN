@@ -9,7 +9,7 @@ gen = COCOParser(coco_dir, resize=(64, 64), batch_size=32)
 categories = gen.categories
 train_gen = gen.balanced_gen('gan')
 
-cgan = ConditionalGAN((4, 4, 64), (64, 64, 3), num_class)
+cgan = ConditionalGAN((2, 2, 512), (64, 64, 3), num_class)
 cgan.build_model()
 cgan.compile(0.01, 0.01)
 

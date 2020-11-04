@@ -192,7 +192,7 @@ class DataGenerator:
         for obj in objs:
             bbox = obj['bbox']
             category = obj['category']
-            if self.__check_max__(category) or (int(bbox[3]) - int(bbox[1])) * (int(bbox[2]) - int(bbox[0])) < 50:
+            if self.__check_max__(category) or (int(bbox[3]) - int(bbox[1])) * (int(bbox[2]) - int(bbox[0])) < 256:
                 continue
             category_idx = self.categories.index(category)
 
@@ -200,8 +200,8 @@ class DataGenerator:
             obj_resize = cv2.resize(obj_image, (self.resize[0], self.resize[1]))
 
             images.append(obj_resize)
-            label = tf.keras.utils.to_categorical(category_idx, len(self.categories))
-            labels.append(label)
+            # label = tf.keras.utils.to_categorical(category_idx, len(self.categories))
+            labels.append(category_idx)
         return images, labels
 
     def save_dataset(self):

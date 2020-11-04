@@ -90,8 +90,10 @@ class COCOParser(DataGenerator):
 
 # a = COCOParser(r'F:\DataSet\COCO', resize=(224, 224), batch_size=32)
 
-gen = COCOParser(r'F:\DataSet\COCO', resize=(64, 64), batch_size=16)
+gen = COCOParser(r'F:\DataSet\COCO', resize=(128, 128), batch_size=16)
 a = gen.balanced_gen('gan')
 for i in range(10):
     b = next(a)
-    cv2.imwrite(r"C:\Users\jzp0306\Desktop\Desktop" + str(i) + ".jpg", b[0][0] * 255.0)
+    image = np.float32(b[0][0] * 127.5 + 127.5)
+    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+    cv2.imwrite(r"C:\Users\jzp0306\Desktop\Desktop" + str(i) + ".jpg", image)
