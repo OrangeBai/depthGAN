@@ -10,3 +10,4 @@ coco_dir = r'F:\DataSet\COCO'
 
 weights_dir = os.path.join(working_path, 'weights')
 test_dir = os.path.join(working_path, 'test_images')
+print(1)
