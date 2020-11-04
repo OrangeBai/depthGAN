@@ -44,26 +44,51 @@ class ConditionalGAN(GANBaseModel):
 
         x = Reshape(self.input_shape)(x)
         x = fast_up_transpose_projection(x, 512, 'LeakyReLU')
-        x = bn_transpose_block(x, 512, (1, 1), 'LeakyReLU', 'block1_1', identity_block=False)
-        x = bn_transpose_block(x, 512, (1, 1), 'LeakyReLU', 'block1_2', identity_block=True)
+        x = conv_transpose_layer(x, 512, (5, 5), 'LeakyReLU')
+        x = conv_transpose_layer(x, 512, (5, 5), 'LeakyReLU')
 
         x = fast_up_transpose_projection(x, 256, 'LeakyReLU')
-        x = bn_transpose_block(x, 512, (1, 1), 'LeakyReLU', 'block2_1', identity_block=False)
-        x = bn_transpose_block(x, 512, (1, 1), 'LeakyReLU', 'block2_2', identity_block=True)
+        x = conv_transpose_layer(x, 512, (5, 5), 'LeakyReLU')
+        x = conv_transpose_layer(x, 512, (5, 5), 'LeakyReLU')
 
         x = fast_up_transpose_projection(x, 256, 'LeakyReLU')
-        x = bn_transpose_block(x, 256, (1, 1), 'LeakyReLU', 'block3_1', identity_block=False)
-        x = bn_transpose_block(x, 256, (1, 1), 'LeakyReLU', 'block3_2', identity_block=True)
+        x = conv_transpose_layer(x, 256, (5, 5), 'LeakyReLU')
+        x = conv_transpose_layer(x, 256, (5, 5), 'LeakyReLU')
 
         x = fast_up_transpose_projection(x, 128, 'LeakyReLU')
-        x = bn_transpose_block(x, 128, (1, 1), 'LeakyReLU', 'block4_1', identity_block=False)
-        x = bn_transpose_block(x, 128, (1, 1), 'LeakyReLU', 'block4_2', identity_block=True)
+        x = conv_transpose_layer(x, 128, (5, 5), 'LeakyReLU')
+        x = conv_transpose_layer(x, 128, (5, 5), 'LeakyReLU')
 
         x = fast_up_transpose_projection(x, 64, 'LeakyReLU')
-        x = bn_transpose_block(x, 64, (1, 1), 'LeakyReLU', 'block5_1', identity_block=False)
-        x = bn_transpose_block(x, 64, (1, 1), 'LeakyReLU', 'block5_2', identity_block=True)
+        x = conv_transpose_layer(x, 64, (5, 5), 'LeakyReLU')
+        x = conv_transpose_layer(x, 64, (5, 5), 'LeakyReLU')
 
-        x = conv_transpose_layer(x, 3, (3, 3), tanh, batch_norm=False)
+        x = conv_transpose_layer(x, 3, (5, 5), tanh, batch_norm=False)
+
+        # x = Dense(2048)(combined_input)
+        #
+        # x = Reshape((2, 2, 512))(x)
+        # x = BatchNormalization(momentum=0.9)(x)
+        # x = LeakyReLU(0.1)(x)
+        #
+        # x = Conv2DTranspose(256, (5, 5), padding='same', strides=2)(x)
+        # x = BatchNormalization(momentum=0.9)(x)
+        # x = LeakyReLU(0.1)(x)
+        #
+        # x = Conv2DTranspose(128, (5, 5), padding='same', strides=2)(x)
+        # x = BatchNormalization(momentum=0.9)(x)
+        # x = LeakyReLU(0.1)(x)
+        #
+        # x = Conv2DTranspose(64, (5, 5), padding='same', strides=2)(x)
+        # x = BatchNormalization(momentum=0.9)(x)
+        # x = LeakyReLU(0.1)(x)
+        #
+        # x = Conv2DTranspose(32, (5, 5), padding='same', strides=2)(x)
+        # x = BatchNormalization(momentum=0.9)(x)
+        # x = LeakyReLU(0.1)(x)
+        #
+        # x = Conv2DTranspose(3, (5, 5), padding='same', strides=2)(x)
+        # x = Activation('tanh')(x)
 
         self.generator = Model([noise_tensor, label_tensor], x)
         self.generator.summary(160)
@@ -84,6 +109,35 @@ class ConditionalGAN(GANBaseModel):
         x = Dropout(0.3)(x)
         x = dense_layer(x, 512, 'LeakyReLU')
         validity = dense_layer(x, 1, sigmoid, batch_norm=False)
+
+        # x = GaussianNoise(0.1)(input_tensor)
+        #
+        # x = Conv2D(64, (3, 3), padding='same', strides=2)(x)
+        # x = BatchNormalization(momentum=0.9)(x)
+        # x = LeakyReLU(0.2)(x)
+        #
+        # x = Conv2D(128, (3, 3), padding='same', strides=2)(x)
+        # x = BatchNormalization(momentum=0.9)(x)
+        # x = LeakyReLU(0.2)(x)
+        #
+        # x = Conv2D(256, (3, 3), padding='same', strides=2)(x)
+        # x = BatchNormalization(momentum=0.9)(x)
+        # x = LeakyReLU(0.2)(x)
+        #
+        # x = Conv2D(512, (3, 3), padding='same', strides=2)(x)
+        # x = BatchNormalization(momentum=0.9)(x)
+        # x = LeakyReLU(0.2)(x)
+        #
+        # x = Conv2D(512, (3, 3), padding='same', strides=2)(x)
+        # x = BatchNormalization(momentum=0.9)(x)
+        # x = LeakyReLU(0.2)(x)
+        #
+        # flat_img = Flatten()(x)
+        # model_input = multiply([flat_img, label_embedding])
+        #
+        # nn = Dropout(0.3)(model_input)
+        #
+        # validity = Dense(1, activation='sigmoid')(nn)
 
         self.discriminator = Model([input_tensor, label_tensor], validity)
         self.discriminator.summary(160)
@@ -138,8 +192,8 @@ class ConditionalGAN(GANBaseModel):
             batch_size = x_train.shape[0]
             if batch_size > self.batch_size:
                 batch_size = self.batch_size
-            real_patch = 0.75 + 0.25 * np.random.random((batch_size, 8, 8, 1))
-            real_gt = 0.75 + 0.25 * np.random.random((batch_size, 1))
+            real_patch = 0.9 + 0.1 * np.random.random((batch_size, 8, 8, 1))
+            real_gt = 0.9 + 0.1 * np.random.random((batch_size, 1))
             # real_loss = self.discriminator.train_on_batch([x_train[:batch_size], y_train[:batch_size]],
             #                                               [real_patch, real_gt])
             real_loss = self.discriminator.train_on_batch([x_train[:batch_size], y_train[:batch_size]], real_gt)
@@ -149,8 +203,8 @@ class ConditionalGAN(GANBaseModel):
             fake_labels = tf.keras.utils.to_categorical(fake_categories, num_classes=self.class_number)
             fake_images = self.generator.predict_on_batch([noise, fake_categories])
 
-            fake_gt = 0.25 * np.random.random((batch_size, 1))
-            fake_patch = 0.25 * np.random.random((batch_size, 8, 8, 1))
+            fake_gt = 0.1 * np.random.random((batch_size, 1))
+            fake_patch = 0.1 * np.random.random((batch_size, 8, 8, 1))
             # fake_loss = self.discriminator.train_on_batch([fake_images, fake_labels], [fake_patch, fake_gt])
             fake_loss = self.discriminator.train_on_batch([fake_images, fake_categories], fake_gt)
 
@@ -160,8 +214,8 @@ class ConditionalGAN(GANBaseModel):
             noise = np.random.random((batch_size, self.dense_units))
             fake_categories = randint(0, self.class_number, batch_size)
             fake_labels = tf.keras.utils.to_categorical(fake_categories, num_classes=self.class_number)
-            real_patch = 0.75 + 0.25 * np.random.random((batch_size, 8, 8, 1))
-            real_gt = 0.75 + 0.25 * np.random.random((batch_size, 1))
+            real_patch = 0.9 + 0.1 * np.random.random((batch_size, 8, 8, 1))
+            real_gt = 0.9 + 0.1 * np.random.random((batch_size, 1))
 
             # g_loss = self.model.train_on_batch([noise, fake_labels], [real_patch, real_gt])
 

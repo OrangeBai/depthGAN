@@ -72,7 +72,6 @@ def discriminator():
     label_embedding = Flatten()(Embedding(classes, noise_size)(label))
 
     flat_img = Flatten()(x)
-
     model_input = multiply([flat_img, label_embedding])
 
     nn = Dropout(0.3)(model_input)
