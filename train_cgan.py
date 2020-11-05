@@ -9,9 +9,9 @@ gen = COCOParser(coco_dir, resize=(64, 64), batch_size=32)
 categories = gen.categories
 train_gen = gen.balanced_gen('gan')
 
-cgan = ConditionalGAN((2, 2, 512), (64, 64, 3), num_class)
+cgan = ConditionalGAN((4, 4, 512), (64, 64, 3), num_class)
 cgan.build_model()
-cgan.compile(0.0002, 0.001)
+cgan.compile(0.001, 0.001)
 
 for i in range(num_epoch):
     print('Epoch {0} / {1}'.format(i, num_epoch))

@@ -40,9 +40,7 @@ class ConditionalGAN(GANBaseModel):
         label_embedding = Flatten()(Embedding(self.class_number, self.dense_units)(label_tensor))
         combined_input = multiply([noise_tensor, label_embedding])
 
-        x = dense_layer(combined_input, self.dense_units, 'LeakyReLU')
-
-        x = Reshape(self.input_shape)(x)
+        x = Reshape(self.input_shape)(combined_input)
         x = fast_up_transpose_projection(x, 512, 'LeakyReLU')
         x = conv_transpose_layer(x, 512, (5, 5), 'LeakyReLU')
         x = conv_transpose_layer(x, 512, (5, 5), 'LeakyReLU')
@@ -58,10 +56,6 @@ class ConditionalGAN(GANBaseModel):
         x = fast_up_transpose_projection(x, 128, 'LeakyReLU')
         x = conv_transpose_layer(x, 128, (5, 5), 'LeakyReLU')
         x = conv_transpose_layer(x, 128, (5, 5), 'LeakyReLU')
-
-        x = fast_up_transpose_projection(x, 64, 'LeakyReLU')
-        x = conv_transpose_layer(x, 64, (5, 5), 'LeakyReLU')
-        x = conv_transpose_layer(x, 64, (5, 5), 'LeakyReLU')
 
         x = conv_transpose_layer(x, 3, (5, 5), tanh, batch_norm=False)
 
@@ -89,7 +83,7 @@ class ConditionalGAN(GANBaseModel):
         #
         # x = Conv2DTranspose(3, (5, 5), padding='same', strides=2)(x)
         # x = Activation('tanh')(x)
-
+        #
         self.generator = Model([noise_tensor, label_tensor], x)
         self.generator.summary(160)
         return
@@ -99,7 +93,7 @@ class ConditionalGAN(GANBaseModel):
         label_tensor = Input((1,))
         label_embedding = Flatten()(Embedding(self.class_number, self.dense_units)(label_tensor))
 
-        x = GaussianNoise(0.1)(input_tensor)
+        x = GaussianNoise(0.05)(input_tensor)
         x = res14(x)
 
         # output_patch = conv_layer(x, 1, (3, 3), activation=sigmoid)
@@ -107,7 +101,7 @@ class ConditionalGAN(GANBaseModel):
 
         x = multiply([x, label_embedding])
         x = Dropout(0.3)(x)
-        x = dense_layer(x, 512, 'LeakyReLU')
+        # x = dense_layer(x, 512, 'LeakyReLU')
         validity = dense_layer(x, 1, sigmoid, batch_norm=False)
 
         # x = GaussianNoise(0.1)(input_tensor)
@@ -192,6 +186,9 @@ class ConditionalGAN(GANBaseModel):
             batch_size = x_train.shape[0]
             if batch_size > self.batch_size:
                 batch_size = self.batch_size
+
+            self.discriminator.summary(160)
+            self.model.summary(160)
             real_patch = 0.9 + 0.1 * np.random.random((batch_size, 8, 8, 1))
             real_gt = 0.9 + 0.1 * np.random.random((batch_size, 1))
             # real_loss = self.discriminator.train_on_batch([x_train[:batch_size], y_train[:batch_size]],
@@ -218,7 +215,7 @@ class ConditionalGAN(GANBaseModel):
             real_gt = 0.9 + 0.1 * np.random.random((batch_size, 1))
 
             # g_loss = self.model.train_on_batch([noise, fake_labels], [real_patch, real_gt])
-
+            self.model.summary(160)
             g_loss = self.model.train_on_batch([noise, fake_categories], real_gt)
 
             # train_res[j, :] = [real_loss[1], real_loss[2], fake_loss[1], fake_loss[2], g_loss[1], g_loss[2]]

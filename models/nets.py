@@ -196,7 +196,7 @@ def fast_up_transpose_conv(x, filters, activation):
 
 
 def fast_up_transpose_projection(input_tensor, filters, activation):
-    shortcut = fast_upconv(input_tensor, filters, None)
+    shortcut = fast_up_transpose_conv(input_tensor, filters, None)
     x = fast_up_transpose_conv(input_tensor, filters, activation)
     x = conv_transpose_layer(x, filters, (3, 3), activation=activation, batch_norm=False)
 
