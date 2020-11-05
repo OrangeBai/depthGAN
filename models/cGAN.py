@@ -91,7 +91,7 @@ class ConditionalGAN(GANBaseModel):
     def build_discriminator(self):
         input_tensor = Input(self.image_shape)
         label_tensor = Input((1,))
-        label_embedding = Flatten()(Embedding(self.class_number, self.dense_units)(label_tensor))
+        label_embedding = Flatten()(Embedding(self.class_number, self.dense_units // 4)(label_tensor))
 
         x = GaussianNoise(0.05)(input_tensor)
         x = res14(x)
@@ -187,8 +187,8 @@ class ConditionalGAN(GANBaseModel):
             if batch_size > self.batch_size:
                 batch_size = self.batch_size
 
-            self.discriminator.summary(160)
-            self.model.summary(160)
+            # self.discriminator.summary(160)
+            # self.model.summary(160)
             real_patch = 0.9 + 0.1 * np.random.random((batch_size, 8, 8, 1))
             real_gt = 0.9 + 0.1 * np.random.random((batch_size, 1))
             # real_loss = self.discriminator.train_on_batch([x_train[:batch_size], y_train[:batch_size]],
@@ -215,7 +215,7 @@ class ConditionalGAN(GANBaseModel):
             real_gt = 0.9 + 0.1 * np.random.random((batch_size, 1))
 
             # g_loss = self.model.train_on_batch([noise, fake_labels], [real_patch, real_gt])
-            self.model.summary(160)
+            # self.model.summary(160)
             g_loss = self.model.train_on_batch([noise, fake_categories], real_gt)
 
             # train_res[j, :] = [real_loss[1], real_loss[2], fake_loss[1], fake_loss[2], g_loss[1], g_loss[2]]
