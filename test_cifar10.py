@@ -11,7 +11,7 @@ from tensorflow.keras.losses import binary_crossentropy
 from utils.losses import *
 import tensorflow as tf
 
-tf.config.experimental_run_functions_eagerly(True)
+tf.config.experimental_run_functions_eagerly(False)
 
 img_size = 32
 noise_size = 4096

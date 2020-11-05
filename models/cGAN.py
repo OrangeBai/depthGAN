@@ -41,21 +41,24 @@ class ConditionalGAN(GANBaseModel):
         combined_input = multiply([noise_tensor, label_embedding])
 
         x = Reshape(self.input_shape)(combined_input)
-        x = fast_up_transpose_projection(x, 512, 'LeakyReLU')
-        x = conv_transpose_layer(x, 512, (5, 5), 'LeakyReLU')
-        x = conv_transpose_layer(x, 512, (5, 5), 'LeakyReLU')
 
-        x = fast_up_transpose_projection(x, 256, 'LeakyReLU')
-        x = conv_transpose_layer(x, 512, (5, 5), 'LeakyReLU')
-        x = conv_transpose_layer(x, 512, (5, 5), 'LeakyReLU')
+        x = conv_transpose_layer(x, 256, (3, 3), 'LeakyReLU', strides=2)
+        x = conv_transpose_layer(x, 256, (3, 3), 'LeakyReLU')
+        x = conv_transpose_layer(x, 256, (3, 3), 'LeakyReLU')
 
-        x = fast_up_transpose_projection(x, 256, 'LeakyReLU')
-        x = conv_transpose_layer(x, 256, (5, 5), 'LeakyReLU')
-        x = conv_transpose_layer(x, 256, (5, 5), 'LeakyReLU')
+        x = conv_transpose_layer(x, 256, (3, 3), 'LeakyReLU', strides=2)
+        x = conv_transpose_layer(x, 256, (3, 3), 'LeakyReLU')
+        x = conv_transpose_layer(x, 256, (3, 3), 'LeakyReLU')
 
-        x = fast_up_transpose_projection(x, 128, 'LeakyReLU')
+        x = conv_transpose_layer(x, 128, (5, 5), 'LeakyReLU', strides=2)
         x = conv_transpose_layer(x, 128, (5, 5), 'LeakyReLU')
         x = conv_transpose_layer(x, 128, (5, 5), 'LeakyReLU')
+
+        x = conv_transpose_layer(x, 64, (5, 5), 'LeakyReLU', strides=2)
+        x = conv_transpose_layer(x, 64, (5, 5), 'LeakyReLU')
+        x = conv_transpose_layer(x, 64, (5, 5), 'LeakyReLU')
+
+        # x = Dropout(0.4)(x)
 
         x = conv_transpose_layer(x, 3, (5, 5), tanh, batch_norm=False)
 
@@ -100,7 +103,7 @@ class ConditionalGAN(GANBaseModel):
         x = Flatten()(x)
 
         x = multiply([x, label_embedding])
-        x = Dropout(0.3)(x)
+        x = Dropout(0.4)(x)
         # x = dense_layer(x, 512, 'LeakyReLU')
         validity = dense_layer(x, 1, sigmoid, batch_norm=False)
 
@@ -168,7 +171,6 @@ class ConditionalGAN(GANBaseModel):
             os.makedirs(test_dir)
         noise = np.random.random((self.class_number, self.dense_units))
         fake_categories = np.array([i for i in range(self.class_number)])
-        fake_labels = tf.keras.utils.to_categorical(fake_categories, num_classes=self.class_number)
         fake_images = self.generator.predict_on_batch([noise, fake_categories])
         for idx, image in enumerate(fake_images):
             path = os.path.join(test_dir, 'epo_{0}_cat_{1}.jpg'.format(epoch_num, categories[idx]))
@@ -197,7 +199,6 @@ class ConditionalGAN(GANBaseModel):
 
             noise = np.random.random((batch_size, self.dense_units))
             fake_categories = randint(0, self.class_number, batch_size)
-            fake_labels = tf.keras.utils.to_categorical(fake_categories, num_classes=self.class_number)
             fake_images = self.generator.predict_on_batch([noise, fake_categories])
 
             fake_gt = 0.1 * np.random.random((batch_size, 1))
@@ -210,12 +211,10 @@ class ConditionalGAN(GANBaseModel):
 
             noise = np.random.random((batch_size, self.dense_units))
             fake_categories = randint(0, self.class_number, batch_size)
-            fake_labels = tf.keras.utils.to_categorical(fake_categories, num_classes=self.class_number)
             real_patch = 0.9 + 0.1 * np.random.random((batch_size, 8, 8, 1))
             real_gt = 0.9 + 0.1 * np.random.random((batch_size, 1))
 
             # g_loss = self.model.train_on_batch([noise, fake_labels], [real_patch, real_gt])
-            # self.model.summary(160)
             g_loss = self.model.train_on_batch([noise, fake_categories], real_gt)
 
             # train_res[j, :] = [real_loss[1], real_loss[2], fake_loss[1], fake_loss[2], g_loss[1], g_loss[2]]

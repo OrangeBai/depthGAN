@@ -32,12 +32,15 @@ def conv_layer(x, filters, kernel_size, activation, strides=(1, 1), padding='sam
     return x
 
 
-def conv_transpose_layer(x, filters, kernel_size, activation, padding='same', batch_norm=True, **kwargs):
-    x = Conv2DTranspose(filters, kernel_size, padding=padding, **kwargs)(x)
+def conv_transpose_layer(x, filters, kernel_size, activation, strides=1, padding='same', batch_norm=False,
+                         drop_out=False, **kwargs):
+    x = Conv2DTranspose(filters, kernel_size, padding=padding, strides=strides, **kwargs)(x)
     if batch_norm:
         x = BatchNormalization()(x)
 
     x = activation_layer(x, activation)
+    if drop_out:
+        x = Dropout(0.4)(x)
     return x
 
 

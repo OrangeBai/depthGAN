@@ -2,6 +2,8 @@ from models.cGAN import *
 from pipeline.coco_parser import *
 from config import *
 
+
+tf.config.experimental_run_functions_eagerly(False)
 num_epoch = 60
 num_class = 80
 
@@ -11,7 +13,7 @@ train_gen = gen.balanced_gen('gan')
 
 cgan = ConditionalGAN((4, 4, 512), (64, 64, 3), num_class)
 cgan.build_model()
-cgan.compile(0.001, 0.001)
+cgan.compile(0.001, 0.0002)
 
 for i in range(num_epoch):
     print('Epoch {0} / {1}'.format(i, num_epoch))
