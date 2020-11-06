@@ -33,21 +33,22 @@ def generator():
     model_input = concatenate([noise, label])
 
     x = Dense(2048)(model_input)
+    x = LeakyReLU(0.1)(x)
 
     x = Reshape((2, 2, 512))(x)
-    # x = BatchNormalization(momentum=0.9)(x)
+    # x = BatchNormalization()(x)
     x = LeakyReLU(0.1)(x)
 
     x = Conv2DTranspose(256, (5, 5), padding='same', strides=2)(x)
-    # x = BatchNormalization(momentum=0.9)(x)
+    # x = BatchNormalization()(x)
     x = LeakyReLU(0.1)(x)
 
     x = Conv2DTranspose(128, (5, 5), padding='same', strides=2)(x)
-    # x = BatchNormalization(momentum=0.9)(x)
+    # x = BatchNormalization()(x)
     x = LeakyReLU(0.1)(x)
 
     x = Conv2DTranspose(64, (5, 5), padding='same', strides=2)(x)
-    # x = BatchNormalization(momentum=0.9)(x)
+    # x = BatchNormalization()(x)
     x = LeakyReLU(0.1)(x)
 
     x = Conv2DTranspose(3, (5, 5), padding='same', strides=2)(x)
@@ -65,19 +66,19 @@ def discriminator():
     x = GaussianNoise(0.05)(img)
 
     x = Conv2D(64, (3, 3), padding='same', strides=2)(x)
-    # x = BatchNormalization(momentum=0.9)(x)
+    # x = BatchNormalization()(x)
     x = LeakyReLU(0.2)(x)
 
     x = Conv2D(128, (3, 3), padding='same', strides=2)(x)
-    # x = BatchNormalization(momentum=0.9)(x)
+    # x = BatchNormalization()(x)
     x = LeakyReLU(0.2)(x)
 
     x = Conv2D(256, (3, 3), padding='same', strides=2)(x)
-    # x = BatchNormalization(momentum=0.9)(x)
+    # x = BatchNormalization()(x)
     x = LeakyReLU(0.2)(x)
 
     x = Conv2D(512, (3, 3), padding='same', strides=2)(x)
-    # x = BatchNormalization(momentum=0.9)(x)
+    # x = BatchNormalization()(x)
     x = LeakyReLU(0.2)(x)
 
     label = Input(shape=(10,))

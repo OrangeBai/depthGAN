@@ -13,7 +13,7 @@ train_gen = gen.balanced_gen('gan')
 
 cgan = ConditionalGAN((2, 2, 512), (64, 64, 3), num_class)
 cgan.build_model()
-cgan.compile(0.0002, 0.001)
+cgan.compile(0.0001, 0.0001)
 
 for i in range(num_epoch):
     print('Epoch {0} / {1}'.format(i, num_epoch))
@@ -24,4 +24,3 @@ for i in range(num_epoch):
     cgan.save_model(weights_dir, 'model_1')
 # cgan.load_model(weights_dir, 'model_1')
 
-print(1)

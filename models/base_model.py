@@ -93,12 +93,12 @@ class GANBaseModel(BaseModel):
 
         # set learning rate
         learning_rate_fn_d = InverseTimeDecay(init_rate_d, 1, decay_rate=1e-5)
-        optimizer_d = Adam()
+        optimizer_d = Adam(beta_1=0.5)
         optimizer_d.learning_rate = learning_rate_fn_d
         self.discriminator.compile(optimizer=optimizer_d, loss=binary_crossentropy, metrics=metrics)
 
         learning_rate_fn_g = InverseTimeDecay(init_rate_g, 1, decay_rate=1e-5)
-        optimizer_g = Adam()
+        optimizer_g = Adam(beta_1=0.5)
         optimizer_g.learning_rate = learning_rate_fn_g
         self.model.compile(optimizer=optimizer_g, loss=binary_crossentropy, metrics=metrics)
 

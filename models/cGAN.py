@@ -9,7 +9,7 @@ class ConditionalGAN(GANBaseModel):
     def __init__(self, input_shape, image_shape, class_number, batch_size=32):
         super().__init__()
         self.input_shape = input_shape
-        self.noise_units = 256
+        self.noise_units = 100
         self.dense_units = int(np.prod(self.input_shape))
         self.image_units = image_shape[0] * image_shape[1]
         self.image_shape = image_shape
@@ -46,28 +46,22 @@ class ConditionalGAN(GANBaseModel):
         x = LeakyReLU(0.1)(x)
 
         x = Reshape(self.input_shape)(x)
-        # x = BatchNormalization(momentum=0.9)(x)
+
+        x = Conv2DTranspose(512, (5, 5), padding='same', strides=2)(x)
         x = LeakyReLU(0.1)(x)
 
         x = Conv2DTranspose(256, (5, 5), padding='same', strides=2)(x)
-        # x = BatchNormalization(momentum=0.9)(x)
         x = LeakyReLU(0.1)(x)
 
         x = Conv2DTranspose(128, (5, 5), padding='same', strides=2)(x)
-        # x = BatchNormalization(momentum=0.9)(x)
         x = LeakyReLU(0.1)(x)
 
         x = Conv2DTranspose(64, (5, 5), padding='same', strides=2)(x)
-        # x = BatchNormalization(momentum=0.9)(x)
         x = LeakyReLU(0.1)(x)
 
         x = Conv2DTranspose(3, (5, 5), padding='same', strides=2)(x)
         x = LeakyReLU(0.1)(x)
 
-        x = Conv2DTranspose(3, (5, 5), padding='same', strides=2)(x)
-        x = LeakyReLU(0.1)(x)
-
-        x = Conv2D(3, (3, 3), padding='same')(x)
         img = Activation('tanh')(x)
 
         self.generator = Model([noise_tensor, label_tensor], img)
@@ -81,51 +75,28 @@ class ConditionalGAN(GANBaseModel):
         x = GaussianNoise(0.05)(input_tensor)
 
         x = Conv2D(64, (3, 3), padding='same', strides=2)(x)
-        # x = BatchNormalization(momentum=0.9)(x)
-        x = LeakyReLU(0.2)(x)
-
-        x = Conv2D(64, (3, 3), padding='same')(x)
-        # x = BatchNormalization(momentum=0.9)(x)
         x = LeakyReLU(0.2)(x)
 
         x = Conv2D(128, (3, 3), padding='same', strides=2)(x)
-        # x = BatchNormalization(momentum=0.9)(x)
-        x = LeakyReLU(0.2)(x)
-
-        x = Conv2D(128, (3, 3), padding='same')(x)
-        # x = BatchNormalization(momentum=0.9)(x)
         x = LeakyReLU(0.2)(x)
 
         x = Conv2D(256, (3, 3), padding='same', strides=2)(x)
-        # x = BatchNormalization(momentum=0.9)(x)
-        x = LeakyReLU(0.2)(x)
-        x = Conv2D(256, (3, 3), padding='same')(x)
-        # x = BatchNormalization(momentum=0.9)(x)
         x = LeakyReLU(0.2)(x)
 
         x = Conv2D(512, (3, 3), padding='same', strides=2)(x)
-        # x = BatchNormalization(momentum=0.9)(x)
-        x = LeakyReLU(0.2)(x)
-        x = Conv2D(512, (3, 3), padding='same')(x)
-        # x = BatchNormalization(momentum=0.9)(x)
         x = LeakyReLU(0.2)(x)
 
         x = Conv2D(512, (3, 3), padding='same', strides=2)(x)
-        # x = BatchNormalization(momentum=0.9)(x)
-        x = LeakyReLU(0.2)(x)
-        x = Conv2D(512, (3, 3), padding='same')(x)
-        # x = BatchNormalization(momentum=0.9)(x)
         x = LeakyReLU(0.2)(x)
 
-        # label_embedding = Flatten()(Embedding(classes, noise_size)(label))
+        x = Conv2D(512, (3, 3), padding='same', strides=2)(x)
+        x = LeakyReLU(0.2)(x)
 
         flat_img = Flatten()(x)
 
         model_input = concatenate([flat_img, label_tensor])
 
-        nn = Dropout(0.3)(model_input)
-
-        validity = Dense(1, activation='sigmoid')(nn)
+        validity = Dense(1, activation='sigmoid')(model_input)
 
         self.discriminator = Model([input_tensor, label_tensor], validity)
         self.discriminator.summary(160)
@@ -175,14 +146,12 @@ class ConditionalGAN(GANBaseModel):
             x_train, y_train = q.get()
             if x_train is None:
                 break
-            self.discriminator.trainable = True
 
             batch_size = x_train.shape[0]
             if batch_size > self.batch_size:
                 batch_size = self.batch_size
 
-            # self.discriminator.summary(160)
-            # self.model.summary(160)
+            self.discriminator.trainable = True
             real_patch = 0.9 + 0.1 * np.random.random((batch_size, 8, 8, 1))
             real_gt = 0.9 + 0.1 * np.random.random((batch_size, 1))
             # real_loss = self.discriminator.train_on_batch([x_train[:batch_size], y_train[:batch_size]],

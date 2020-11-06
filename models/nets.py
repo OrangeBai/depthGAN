@@ -23,7 +23,7 @@ def dense_layer(input_layer, units, activation, batch_norm=True, **kwargs):
     return x
 
 
-def conv_layer(x, filters, kernel_size, activation, strides=(1, 1), padding='same', batch_norm=True, **kwargs):
+def conv_layer(x, filters, kernel_size, activation, strides=(1, 1), padding='same', batch_norm=False, **kwargs):
     x = Conv2D(filters, kernel_size, strides=strides, padding=padding, **kwargs)(x)
     if batch_norm:
         x = BatchNormalization()(x)
