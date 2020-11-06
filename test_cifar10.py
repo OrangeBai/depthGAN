@@ -14,7 +14,7 @@ import tensorflow as tf
 tf.config.experimental_run_functions_eagerly(False)
 
 img_size = 32
-noise_size = 4096
+noise_size = 100
 batch_size = 50
 classes = 10
 
@@ -26,37 +26,34 @@ y = np.concatenate((y1, y2), axis=0)
 
 def generator():
     noise = Input(shape=(noise_size,))
-    label = Input(shape=(1,))
+    label = Input(shape=(10,))
 
-    label_embedding = Flatten()(Embedding(classes, noise_size)(label))
+    # label_embedding = Flatten()(Embedding(classes, noise_size)(label))
 
-    model_input = multiply([noise, label_embedding])
+    model_input = concatenate([noise, label])
 
-    x = Reshape((4, 4, 256))(model_input)
-    # x = BatchNormalization()(x)
-    # x = LeakyReLU(0.1)(x)
+    x = Dense(2048)(model_input)
+
+    x = Reshape((2, 2, 512))(x)
+    # x = BatchNormalization(momentum=0.9)(x)
+    x = LeakyReLU(0.1)(x)
 
     x = Conv2DTranspose(256, (5, 5), padding='same', strides=2)(x)
-    x = Conv2DTranspose(256, (3, 3), padding='same', strides=1)(x)
-    x = BatchNormalization()(x)
+    # x = BatchNormalization(momentum=0.9)(x)
     x = LeakyReLU(0.1)(x)
 
     x = Conv2DTranspose(128, (5, 5), padding='same', strides=2)(x)
-    x = Conv2DTranspose(128, (3, 3), padding='same', strides=1)(x)
-    x = BatchNormalization()(x)
+    # x = BatchNormalization(momentum=0.9)(x)
     x = LeakyReLU(0.1)(x)
 
     x = Conv2DTranspose(64, (5, 5), padding='same', strides=2)(x)
-    x = Conv2DTranspose(64, (3, 3), padding='same', strides=1)(x)
-    x = BatchNormalization()(x)
+    # x = BatchNormalization(momentum=0.9)(x)
     x = LeakyReLU(0.1)(x)
 
-    # x = Conv2DTranspose(64, (5, 5), padding='same', strides=2)(x)
-    # x = BatchNormalization(momentum=0.9)(x)
-    # x = LeakyReLU(0.1)(x)
+    x = Conv2DTranspose(3, (5, 5), padding='same', strides=2)(x)
+    x = LeakyReLU(0.1)(x)
 
-    x = Conv2DTranspose(64, (3, 3), padding='same', strides=1)(x)
-    x = Conv2DTranspose(3, (5, 5), padding='same')(x)
+    x = Conv2D(3, (3, 3), padding='same')(x)
     img = Activation('tanh')(x)
 
     return Model([noise, label], img)
@@ -65,29 +62,30 @@ def generator():
 def discriminator():
     img = Input(shape=(img_size, img_size, 3))
 
-    # x = GaussianNoise(0.1)(img)
+    x = GaussianNoise(0.05)(img)
 
-    x = Conv2D(64, (3, 3), padding='same', strides=2)(img)
-    x = BatchNormalization()(x)
+    x = Conv2D(64, (3, 3), padding='same', strides=2)(x)
+    # x = BatchNormalization(momentum=0.9)(x)
     x = LeakyReLU(0.2)(x)
 
     x = Conv2D(128, (3, 3), padding='same', strides=2)(x)
-    x = BatchNormalization()(x)
+    # x = BatchNormalization(momentum=0.9)(x)
     x = LeakyReLU(0.2)(x)
 
     x = Conv2D(256, (3, 3), padding='same', strides=2)(x)
-    x = BatchNormalization()(x)
+    # x = BatchNormalization(momentum=0.9)(x)
     x = LeakyReLU(0.2)(x)
 
-    # x = Conv2D(512, (3, 3), padding='same', strides=2)(x)
+    x = Conv2D(512, (3, 3), padding='same', strides=2)(x)
     # x = BatchNormalization(momentum=0.9)(x)
-    # x = LeakyReLU(0.2)(x)
+    x = LeakyReLU(0.2)(x)
 
-    label = Input(shape=(1,))
-    label_embedding = Flatten()(Embedding(classes, noise_size)(label))
+    label = Input(shape=(10,))
+    # label_embedding = Flatten()(Embedding(classes, noise_size)(label))
 
     flat_img = Flatten()(x)
-    model_input = multiply([flat_img, label_embedding])
+
+    model_input = concatenate([flat_img, label])
 
     nn = Dropout(0.3)(model_input)
 
@@ -97,18 +95,18 @@ def discriminator():
 
 
 d_model = discriminator()
-d_model.compile(loss=bce(), optimizer=Adam(lr=0.002, beta_1=0.5))
+d_model.compile(loss=['binary_crossentropy'], optimizer=Adam(lr=0.0002, beta_1=0.5))
 d_model.trainable = False
 g_model = generator()
 
 noise = Input(shape=(noise_size,))
-label = Input(shape=(1,))
+label = Input(shape=(10,))
 img = g_model([noise, label])
 
 valid = d_model([img, label])
 
 combined = Model([noise, label], valid)
-combined.compile(loss=bce(), optimizer=Adam(lr=0.0001, beta_1=0.5))
+combined.compile(loss=['binary_crossentropy'], optimizer=Adam(lr=0.001, beta_1=0.5))
 
 
 def train(epochs):
@@ -124,11 +122,11 @@ def train(epochs):
             x_train = x[index * batch_size: (index + 1) * batch_size]
             y_train = y[index * batch_size: (index + 1) * batch_size]
             x_train = (x_train - 127.5) / 127.5
+            y_train = tf.keras.utils.to_categorical(y_train, 10)
 
             if index % 100 == random:
                 valid = np.zeros((batch_size, 1)) + (np.random.random() * 0.1)
                 fake = np.ones((batch_size, 1)) - (np.random.random() * 0.1)
-
 
             noise = np.random.randn(batch_size, noise_size)
             gen_img = g_model.predict([noise, y_train])
@@ -138,7 +136,8 @@ def train(epochs):
             d_loss_fake = d_model.train_on_batch([gen_img, y_train], fake)
             d_loss = 0.5 * (np.add(d_loss_real, d_loss_fake))
 
-            sample_label = np.random.randint(0, 10, batch_size).reshape(-1, 1)
+            sample_label = np.random.randint(0, 10, batch_size)
+            sample_label = tf.keras.utils.to_categorical(sample_label, 10)
 
             valid = np.ones((batch_size, 1))
             d_model.trainable = False
@@ -168,16 +167,17 @@ def sample_images(epoch):
     c = 5
     noise = np.random.randn(10, noise_size)
     sample_label = np.arange(0, 10).reshape(-1, 1)
-
+    sample_label = tf.keras.utils.to_categorical(sample_label, 10)
     gen_img = g_model.predict([noise, sample_label])
 
     fig, axs = plt.subplots(r, c)
     cnt = 0
     for i in range(r):
         for j in range(c):
-            img = image.array_to_img(gen_img[cnt])
+            img = gen_img[cnt] * 127.5 + 127.5
+            img = image.array_to_img(img, scale=False)
             axs[i, j].imshow(img)
-            axs[i, j].set_title("Class: %d" % sample_label[cnt])
+            axs[i, j].set_title("Class: %d" % np.argmax(sample_label[cnt]))
             axs[i, j].axis('off')
             cnt += 1
     path = os.path.join(test_dir, "%d.png" % epoch)
