@@ -6,7 +6,7 @@ from multiprocessing import Queue
 from threading import Thread
 from tensorflow.keras.models import Model
 from tensorflow.keras.losses import mse, binary_crossentropy
-from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.optimizers import Adam, SGD
 import os
 
 
@@ -77,30 +77,6 @@ class GANBaseModel(BaseModel):
         self._init_rate_d = None
         self._init_rate_g = None
         self._loss = None  # Loss
-
-    def compile(self, init_rate_d, init_rate_g, metrics=None, lr_schedule=static_learning_rate):
-        """
-        Compile method
-        :param init_rate_d: Model loss
-        :param init_rate_g: initial learning rate for combined model
-        :param metrics: Metrics
-        :param lr_schedule: Learning rate schedule function
-        :return:
-        """
-        self._init_rate_d = init_rate_d
-        self._init_rate_g = init_rate_g
-        self._lr_schedule = lr_schedule
-
-        # set learning rate
-        learning_rate_fn_d = InverseTimeDecay(init_rate_d, 1, decay_rate=1e-5)
-        optimizer_d = Adam(beta_1=0.5)
-        optimizer_d.learning_rate = learning_rate_fn_d
-        self.discriminator.compile(optimizer=optimizer_d, loss=binary_crossentropy, metrics=metrics)
-
-        learning_rate_fn_g = InverseTimeDecay(init_rate_g, 1, decay_rate=1e-5)
-        optimizer_g = Adam(beta_1=0.5)
-        optimizer_g.learning_rate = learning_rate_fn_g
-        self.model.compile(optimizer=optimizer_g, loss=binary_crossentropy, metrics=metrics)
 
     def train_epoch(self, batch_num, train_gen, *args, **kwargs):
         start_time = time.time()

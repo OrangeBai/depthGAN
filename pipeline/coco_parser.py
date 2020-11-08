@@ -13,6 +13,32 @@ class COCOParser(DataGenerator):
         :param batch_size: generator batch size
         """
         super().__init__(path, resize, batch_size)
+        self.super_category = self.load_super_category()
+        print(1)
+
+    def set_super_category(self, category):
+        obj_indexes = [i for i, val in enumerate(self.super_category) if val == category]
+        obj_names = [self.categories[i] for i in obj_indexes]
+        delete_categories = [category for category in self.categories if category not in obj_names]
+        for delete_category in delete_categories:
+            del self.category_counter[delete_category]
+            del self.category_indexer[delete_category]
+            self.categories.remove(delete_category)
+
+    def load_super_category(self):
+        super_category_file = os.path.join(self.path, 'super_category.json')
+        if not os.path.exists(super_category_file):
+            annotation_path = os.path.join(self.path, 'annotations')
+            train_path = os.path.join(annotation_path, 'instances_train2017.json')
+            with open(train_path, 'r') as f:
+                annotation_file = json.load(f)
+            super_category = [category['supercategory'] for category in annotation_file['categories']]
+            with open(super_category_file, 'w') as f:
+                json.dump(super_category, f)
+        else:
+            with open(super_category_file, 'r') as f:
+                super_category = json.load(f)
+        return super_category
 
     def parse_dataset(self, *args, **kwargs):
         annotation_path = os.path.join(self.path, 'annotations')
@@ -65,6 +91,15 @@ class COCOParser(DataGenerator):
 
         return image_annotation
 
+    def save_dataset(self):
+        super().save_dataset()
+        dataset_path = os.path.join(self.path, 'super_category.json')
+        dataset = {
+            'super_category': self.super_categories
+        }
+        with open(dataset_path, 'w') as f:
+            json.dump(dataset, f)
+
 
 # val_ann_path = r"F:\DataSet\COCO\annotations_trainval2017\annotations\instances_val2017.json"
 # val_img_path = r"F:\DataSet\COCO\val2017\val2017"
@@ -89,9 +124,11 @@ class COCOParser(DataGenerator):
 
 
 # a = COCOParser(r'F:\DataSet\COCO', resize=(224, 224), batch_size=32)
-
+#
 # gen = COCOParser(r'F:\DataSet\COCO', resize=(128, 128), batch_size=16)
+# gen.set_super_category('vehicle')
 # a = gen.balanced_gen('gan')
+#
 # for i in range(10):
 #     b = next(a)
 #     image = np.float32(b[0][0] * 127.5 + 127.5)

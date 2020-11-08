@@ -3,7 +3,6 @@ import os
 import cv2
 import numpy as np
 from utils.pipeline_helper import *
-import tensorflow as tf
 import json
 
 
@@ -192,6 +191,8 @@ class DataGenerator:
         for obj in objs:
             bbox = obj['bbox']
             category = obj['category']
+            if category not in self.categories:
+                continue
             if self.__check_max__(category) or (int(bbox[3]) - int(bbox[1])) * (int(bbox[2]) - int(bbox[0])) < 256:
                 continue
             category_idx = self.categories.index(category)
