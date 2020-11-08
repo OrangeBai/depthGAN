@@ -56,19 +56,35 @@ class ConditionalGAN(GANBaseModel):
 
         x = Conv2DTranspose(256, (5, 5), padding='same', strides=2)(x)
         x = BatchNormalization(momentum=0.8)(x)
-        x = Activation(relu)(x)
+        x = LeakyReLU(0.1)(x)
+
+        x = Conv2DTranspose(256, (5, 5), padding='same', strides=1)(x)
+        x = BatchNormalization(momentum=0.8)(x)
+        x = LeakyReLU(0.1)(x)
+
+        x = Conv2DTranspose(256, (5, 5), padding='same', strides=2)(x)
+        x = BatchNormalization(momentum=0.8)(x)
+        x = LeakyReLU(0.1)(x)
+
+        x = Conv2DTranspose(256, (5, 5), padding='same', strides=1)(x)
+        x = BatchNormalization(momentum=0.8)(x)
+        x = LeakyReLU(0.1)(x)
 
         x = Conv2DTranspose(128, (5, 5), padding='same', strides=2)(x)
         x = BatchNormalization(momentum=0.8)(x)
-        x = Activation(relu)(x)
+        x = LeakyReLU(0.1)(x)
+
+        x = Conv2DTranspose(128, (5, 5), padding='same', strides=1)(x)
+        x = BatchNormalization(momentum=0.8)(x)
+        x = LeakyReLU(0.1)(x)
 
         x = Conv2DTranspose(64, (5, 5), padding='same', strides=2)(x)
         x = BatchNormalization(momentum=0.8)(x)
-        x = Activation(relu)(x)
+        x = LeakyReLU(0.1)(x)
 
-        x = Conv2DTranspose(64, (5, 5), padding='same', strides=2)(x)
+        x = Conv2DTranspose(64, (5, 5), padding='same', strides=1)(x)
         x = BatchNormalization(momentum=0.8)(x)
-        x = Activation(relu)(x)
+        x = LeakyReLU(0.1)(x)
 
         x = Conv2DTranspose(3, (5, 5), padding='same')(x)
         img = Activation('tanh')(x)
@@ -80,27 +96,27 @@ class ConditionalGAN(GANBaseModel):
     def build_discriminator(self):
         img = Input(shape=self.image_shape)
 
-        x = GaussianNoise(0.05)(img)
+        # x = GaussianNoise(0.05)(img)
 
-        x = Conv2D(64, (3, 3), padding='same', strides=2)(x)
+        x = Conv2D(64, (3, 3), padding='same', strides=2)(img)
         # x = BatchNormalization(momentum=0.8)(x)
-        x = LeakyReLU(0.2)(x)
+        x = Activation(relu)(x)
 
         x = Conv2D(128, (3, 3), padding='same', strides=2)(x)
-        x = BatchNormalization(momentum=0.8)(x)
-        x = LeakyReLU(0.2)(x)
+        # x = BatchNormalization(momentum=0.8)(x)
+        x = Activation(relu)(x)
 
         x = Conv2D(256, (3, 3), padding='same', strides=2)(x)
-        x = BatchNormalization(momentum=0.8)(x)
-        x = LeakyReLU(0.2)(x)
+        # x = BatchNormalization(momentum=0.8)(x)
+        x = Activation(relu)(x)
 
         # x, patch = res14(x)
 
-        patch_output = Conv2D(1, (3, 3), padding='same')(x)
+        patch_output = Conv2D(1, (3, 3), padding='same', activation='sigmoid')(x)
 
         x = Conv2D(512, (3, 3), padding='same', strides=2)(x)
-        x = BatchNormalization(momentum=0.8)(x)
-        x = LeakyReLU(0.2)(x)
+        # x = BatchNormalization(momentum=0.8)(x)
+        x = Activation(relu)(x)
 
         flat_img = Flatten()(x)
 
