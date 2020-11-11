@@ -11,8 +11,8 @@ import tf2lib as tl
 
 
 class ConditionalGAN:
-    def __init__(self, noise_unit, input_size, image_size, dim, class_number, cgan, penalty_mode='wgan-gp',
-                 penalty_weight=10, batch_size=32, loss_mode='wgan'):
+    def __init__(self, noise_unit, input_size, image_size, dim, class_number, cgan, penalty_mode,
+                 penalty_weight, batch_size, loss_mode):
         super().__init__()
         self.noise_units = noise_unit  # number of white noise units
         self.input_size = input_size  # size of generator convolutional input
