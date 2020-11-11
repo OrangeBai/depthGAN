@@ -3,28 +3,54 @@ from pipeline.coco_parser import *
 from config import *
 from pipeline.cifar import *
 
-tf.config.experimental_run_functions_eagerly(True)
-num_epoch = 60
-num_class = 10
-batch_size = 50
-noise_size = 100
+import argparse
 
-gen = COCOParser(coco_dir, resize=(64, 64), batch_size=batch_size)
-# gen.set_super_category('vehicle')
+parser = argparse.ArgumentParser(description='Train cGAN')
+
+parser.add_argument('--num_epoch', default=60)
+parser.add_argument('--num_class', default=10)
+parser.add_argument('--batch_size', default=32)
+
+
+parser.add_argument('--noise_units', default=128)
+parser.add_argument('--image_size', default=64)
+parser.add_argument('--input_size', default=4)
+parser.add_argument('--dim', default=64)
+
+parser.add_argument('--loss_mode', default='wgan')
+parser.add_argument('--penalty_mode', default='wgan-gp')
+parser.add_argument('--penalty_weight', default=10)
+parser.add_argument('--cgan', default=True)
+
+
+args = parser.parse_args()
+
+tf.config.experimental_run_functions_eagerly(False)
+
+
+gen = COCOParser(coco_dir, resize=(64, 64), batch_size=args.batch_size)
+gen.set_super_category('vehicle')
 categories = gen.categories
 train_gen = gen.balanced_gen('gan')
 
-cgan = ConditionalGAN(noise_unit=128, input_size=2, image_size=32, dim=64, class_number=10, cgan=False,
-                      penalty_mode='wgan-gp')
+cgan = ConditionalGAN(noise_unit=args.noise_units,
+                      input_size=args.input_size,
+                      image_size=args.image_size,
+                      dim=args.dim,
+                      class_number=len(categories),
+                      cgan=args.cgan,
+                      batch_size=args.batch_size,
+                      loss_mode=args.loss_mode,
+                      penalty_mode=args.penalty_mode,
+                      penalty_weight=args.penalty_weight)
 
-a = cifar_10_gen(cgan=False)
+a = cifar_10_gen(cgan=True)
 b = next(a)
 
-cgan.build_generator()
-cgan.build_discriminator()
-cgan.generator.summary(160)
-cgan.discriminator.summary(160)
+cgan.build_generator(name='G')
+cgan.build_discriminator(name='D')
 
-cgan.compile(0.002, 0.002, loss_mode='wgan')
-for i in range(20):
-    cgan.train_epoch(batch_num=500, train_gen=a)
+cgan.compile(0.0002, 0.0002)
+for i in range(args.num_epoch):
+    print('epoch {0} / {1}'.format(i, args.num_epoch))
+    cgan.train_epoch(batch_num=500, train_gen=train_gen)

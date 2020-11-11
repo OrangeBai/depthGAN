@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 from utils.pipeline_helper import *
 import json
+import tensorflow as tf
 
 
 class DataGenerator:
@@ -67,7 +68,7 @@ class DataGenerator:
                 indexes = self.__next_annotation_batch__()  # generate a batch of image ids
                 images, labels = self.parse_batch_indexes(indexes, parser, 'train', *args, **kwargs)
 
-                yield images, labels
+                yield tf.convert_to_tensor(images, dtype=float), tf.convert_to_tensor(labels)
 
         return generator()
 
@@ -107,13 +108,13 @@ class DataGenerator:
             image, label = parser(image_annotation)
             images.extend(image)
             labels.extend(label)
-            if len(images) > 32:
+            if len(images) > self.batch_size:
                 break
 
         images = np.array(images)
         images = normalize_m11(images)
         labels = np.array(labels)
-        return images, labels
+        return images[:self.batch_size], labels[:self.batch_size]
 
     def __set_parser__(self, model):
         if model == 'gan':
@@ -145,9 +146,11 @@ class DataGenerator:
         # otherwise, randomly choose one
         # from category_indexer pick a image_id
         next_categories = self.__check_min__()
-        for category in next_categories:
+        for category in next_categories * 10:
             current_indexer = choice(self.category_indexer[category])
             annotation_batch.append(current_indexer)
+            if len(annotation_batch) > 1.5 * self.batch_size:
+                break
 
         return annotation_batch
 

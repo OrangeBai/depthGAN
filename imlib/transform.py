@@ -2,7 +2,6 @@ import numpy as np
 import skimage.color as color
 import skimage.transform as transform
 
-
 rgb2gray = color.rgb2gray
 gray2rgb = color.gray2rgb
 
@@ -42,6 +41,6 @@ def immerge(images, n_rows=None, n_cols=None, padding=0, pad_value=0):
         i = idx % n_cols
         j = idx // n_cols
         img[j * (h + padding):j * (h + padding) + h,
-            i * (w + padding):i * (w + padding) + w, ...] = image
+        i * (w + padding):i * (w + padding) + w, ...] = image
 
     return img

@@ -83,7 +83,7 @@ def get_adversarial_losses_fn(mode):
         return get_wgan_losses_fn()
 
 
-def gradient_penalty(f, real, fake, mode):
+def gradient_penalty(f, real, fake, mode, cgan):
     def _gradient_penalty(f, real, fake=None):
         def _interpolate(a, b=None):
             if b is None:  # interpolation in DRAGAN
@@ -95,10 +95,16 @@ def gradient_penalty(f, real, fake, mode):
             inter.set_shape(a.shape)
             return inter
 
-        x = _interpolate(real, fake)
+        if cgan:
+            x = _interpolate(real[0], fake[0])
+        else:
+            x = _interpolate(real, fake)
         with tf.GradientTape() as t:
             t.watch(x)
-            pred = f(x)
+            if cgan:
+                pred = f([x, real[1]])
+            else:
+                pred = f(x)
         grad = t.gradient(pred, x)
         norm = tf.norm(tf.reshape(grad, [tf.shape(grad)[0], -1]), axis=1)
         gp = tf.reduce_mean((norm - 1.) ** 2)
