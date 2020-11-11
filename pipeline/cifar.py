@@ -1,8 +1,9 @@
 import numpy as np
 from tensorflow.keras.datasets import cifar10
+import tensorflow as tf
 
 
-def cifar_10_gen(batch_size=32):
+def cifar_10_gen(batch_size=32, cgan=True):
     (x1, y1), (x2, y2) = cifar10.load_data()
 
     x = np.concatenate((x1, x2), axis=0)
@@ -15,4 +16,7 @@ def cifar_10_gen(batch_size=32):
     data_length = len(x)
     while True:
         id = np.random.choice(data_length, 1)[0]
-        yield x[id], y[id]
+        if cgan:
+            yield tf.convert_to_tensor(x[id], dtype=float), tf.convert_to_tensor(y[id])
+        else:
+            yield tf.convert_to_tensor(x[id], dtype=float)

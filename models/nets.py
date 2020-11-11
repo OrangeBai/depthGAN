@@ -23,7 +23,7 @@ def dense_layer(input_layer, units, activation, batch_norm=True, **kwargs):
     return x
 
 
-def conv_layer(x, filters, kernel_size, activation, strides=(1, 1), padding='same', batch_norm=True, **kwargs):
+def conv_layer(x, filters, kernel_size, activation, strides=(1, 1), padding='same', batch_norm=False, **kwargs):
     x = Conv2D(filters, kernel_size, strides=strides, padding=padding, **kwargs)(x)
     if batch_norm:
         x = BatchNormalization(momentum=0.8)(x)
@@ -251,3 +251,14 @@ def get_incoming_shape(incoming):
         return np.shape(incoming)
     else:
         raise Exception("Invalid incoming layer.")
+
+
+def get_norm_layer(norm):
+    if norm == 'none':
+        return lambda: lambda x: x
+    elif norm == 'batch_norm':
+        return BatchNormalization
+    # elif norm == 'instance_norm':
+    #     return tfa.layers.InstanceNormalization
+    elif norm == 'layer_norm':
+        return LayerNormalization

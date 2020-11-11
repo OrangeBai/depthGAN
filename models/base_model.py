@@ -6,7 +6,7 @@ from multiprocessing import Queue
 from threading import Thread
 from tensorflow.keras.models import Model
 from tensorflow.keras.losses import mse, binary_crossentropy
-from tensorflow.keras.optimizers import Adam, SGD
+from tensorflow.keras.optimizers import Adam, SGD, RMSprop
 import os
 
 

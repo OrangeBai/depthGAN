@@ -3,7 +3,7 @@ from pipeline.coco_parser import *
 from config import *
 from pipeline.cifar import *
 
-tf.config.experimental_run_functions_eagerly(False)
+tf.config.experimental_run_functions_eagerly(True)
 num_epoch = 60
 num_class = 10
 batch_size = 50
@@ -14,15 +14,17 @@ gen = COCOParser(coco_dir, resize=(64, 64), batch_size=batch_size)
 categories = gen.categories
 train_gen = gen.balanced_gen('gan')
 
-cgan = ConditionalGAN((2, 2, 512), (32, 32, 3), num_class, batch_size=batch_size)
-cgan.build_model()
-cgan.compile(0.0002, 0.001)
+cgan = ConditionalGAN(noise_unit=128, input_size=2, image_size=32, dim=64, class_number=10, cgan=False,
+                      penalty_mode='wgan-gp')
 
-cifar10_gen = cifar_10_gen()
-for epoch in range(num_epoch):
-    print('Train - {0} / {1}'.format(epoch, num_epoch))
-    res = cgan.train_epoch(500, cifar10_gen)
-    cgan.update_lr(num_epoch, epoch)
-    cgan.test_model(test_dir, epoch, gen.categories)
-    cgan.save_model(weights_dir, 'model_1')
-cgan.load_model(weights_dir, 'model_1')
+a = cifar_10_gen(cgan=False)
+b = next(a)
+
+cgan.build_generator()
+cgan.build_discriminator()
+cgan.generator.summary(160)
+cgan.discriminator.summary(160)
+
+cgan.compile(0.002, 0.002, loss_mode='wgan')
+for i in range(20):
+    cgan.train_epoch(batch_num=500, train_gen=a)
