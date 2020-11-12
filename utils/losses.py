@@ -95,16 +95,10 @@ def gradient_penalty(f, real, fake, mode, cgan):
             inter.set_shape(a.shape)
             return inter
 
-        if cgan:
-            x = _interpolate(real[0], fake[0])
-        else:
-            x = _interpolate(real, fake)
+        x = _interpolate(real, fake)
         with tf.GradientTape() as t:
             t.watch(x)
-            if cgan:
-                pred = f([x, real[1]])
-            else:
-                pred = f(x)
+            pred = f(x)
         grad = t.gradient(pred, x)
         norm = tf.norm(tf.reshape(grad, [tf.shape(grad)[0], -1]), axis=1)
         gp = tf.reduce_mean((norm - 1.) ** 2)

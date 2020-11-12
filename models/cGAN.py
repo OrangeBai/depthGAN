@@ -8,10 +8,11 @@ import functools
 import tqdm
 import imlib as im
 import tf2lib as tl
+from tensorflow.keras.losses import categorical_crossentropy
 
 
 class ConditionalGAN:
-    def __init__(self, noise_unit, input_size, image_size, dim, class_number, cgan, penalty_mode,
+    def __init__(self, noise_unit, input_size, image_size, dim, class_number, acgan, penalty_mode,
                  penalty_weight, batch_size, loss_mode):
         super().__init__()
         self.noise_units = noise_unit  # number of white noise units
@@ -24,6 +25,7 @@ class ConditionalGAN:
 
         self.loss_mode = loss_mode
         self.d_loss_fn, self.g_loss_fn = get_adversarial_losses_fn(loss_mode)
+        self.classifier_loss = categorical_crossentropy
         self.penalty_mode = penalty_mode
         self.penalty_weight = penalty_weight
 
@@ -33,7 +35,7 @@ class ConditionalGAN:
         self.g_optimizer = None
         self.d_optimizer = None
 
-        self.cgan = cgan
+        self.cgan = acgan
 
     def build_generator(self,
                         norm='batch_norm',
@@ -108,18 +110,24 @@ class ConditionalGAN:
             # x = Norm()(x)
             # x = tf.nn.leaky_relu(x, alpha=0.2)  # or h = keras.layers.LeakyReLU(alpha=0.2)(h)
 
-        if self.cgan:
-            label_input = Input((1,))
-            output_units = x.shape[1] * x.shape[2] * x.shape[3]
-            label_embedding = Flatten()(Embedding(self.class_number, output_units)(label_input))
-            label_embedding = Reshape((x.shape[1], x.shape[2], x.shape[3]))(label_embedding)
-            inputs = [inputs, label_input]
-            x = multiply([x, label_embedding])
+        # if self.cgan:
+        #     label_input = Input((1,))
+        #     output_units = x.shape[1] * x.shape[2] * x.shape[3]
+        #     label_embedding = Flatten()(Embedding(self.class_number, output_units)(label_input))
+        #     label_embedding = Reshape((x.shape[1], x.shape[2], x.shape[3]))(label_embedding)
+        #     inputs = [inputs, label_input]
+        #     x = multiply([x, label_embedding])
 
         # 2: logistic
-        x = Conv2D(1, self.input_size, strides=1, padding='valid')(x)
+        realness = Conv2D(1, self.input_size, strides=1, padding='valid')(x)
+        if self.cgan:
+            cls = Conv2D(self.class_number, self.input_size, padding='valid', activation=sigmoid)(x)
+            cls = Flatten()(cls)
+            out = [realness, cls]
+        else:
+            out = realness
 
-        self.discriminator = Model(inputs=inputs, outputs=x, name=name)
+        self.discriminator = Model(inputs=inputs, outputs=out, name=name)
 
     def compile(self, init_rate_d, init_rate_g):
         self.g_optimizer = Adam(init_rate_d, beta_1=0.5)
@@ -182,14 +190,19 @@ class ConditionalGAN:
 
     @tf.function
     def train_G(self, x_real):
-
+        real_image, label = x_real
+        label = tf.keras.utils.to_categorical(label, self.class_number)
         with tf.GradientTape() as t:
             if self.cgan:
-                x_fake = self.sample_fake(x_real[1], True)
+                x_fake = self.sample_fake(x_real[1], False)
             else:
                 x_fake = self.sample_fake()
-            x_fake_d_logistic = self.discriminator(x_fake, training=True)
-            g_loss = self.g_loss_fn(x_fake_d_logistic)
+            pred_fake_res = self.discriminator(x_fake, training=True)
+
+            if self.cgan:
+                g_loss = self.g_loss_fn(pred_fake_res[0]) + self.classifier_loss(label, pred_fake_res[1])
+            else:
+                g_loss = self.g_loss_fn(pred_fake_res[0])
 
         g_grad = t.gradient(g_loss, self.generator.trainable_variables)
         self.g_optimizer.apply_gradients(zip(g_grad, self.generator.trainable_variables))
@@ -198,20 +211,34 @@ class ConditionalGAN:
 
     @tf.function
     def train_D(self, x_real):
+        real_image, label = x_real
+        label = tf.keras.utils.to_categorical(label, self.class_number)
         with tf.GradientTape() as t:
             if self.cgan:
-                x_fake = self.sample_fake(x_real[1], with_label=True)
+                x_fake = self.sample_fake(x_real[1], with_label=False)
             else:
                 x_fake = self.sample_fake()
 
-            x_real_d_logistic = self.discriminator(x_real, training=True)
-            x_fake_d_logistic = self.discriminator(x_fake, training=True)
+            pred_res_real = self.discriminator(real_image, training=True)
+            pred_res_fake = self.discriminator(x_fake, training=True)
+
+            if self.cgan:
+                x_real_d_logistic, cls_real_d_sigmoid = pred_res_real
+                x_fake_d_logistic, cls_fake_d_sigmoid = pred_res_fake
+                cls_real_loss = self.classifier_loss(label, cls_real_d_sigmoid)
+                cls_fake_loss = self.classifier_loss(label, cls_fake_d_sigmoid)
+                d_loss = cls_real_loss + cls_fake_loss
+            else:
+                x_real_d_logistic = pred_res_real
+                x_fake_d_logistic = pred_res_fake
+                d_loss = tf.constant(0)
 
             x_real_d_loss, x_fake_d_loss = self.d_loss_fn(x_real_d_logistic, x_fake_d_logistic)
-            gp = gradient_penalty(functools.partial(self.discriminator, training=True), x_real, x_fake,
+
+            gp = gradient_penalty(functools.partial(self.discriminator, training=True), real_image, x_fake,
                                   mode=self.penalty_mode, cgan=self.cgan)
 
-            d_loss = (x_real_d_loss + x_fake_d_loss) + gp * self.penalty_weight
+            d_loss = d_loss + (x_real_d_loss + x_fake_d_loss) + gp * self.penalty_weight
 
         d_grad = t.gradient(d_loss, self.discriminator.trainable_variables)
         self.d_optimizer.apply_gradients(zip(d_grad, self.discriminator.trainable_variables))

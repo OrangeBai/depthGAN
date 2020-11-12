@@ -7,7 +7,7 @@ import argparse
 
 parser = argparse.ArgumentParser(description='Train cGAN')
 
-parser.add_argument('--num_epoch', default=60)
+parser.add_argument('--num_epoch', default=120)
 parser.add_argument('--num_class', default=10)
 parser.add_argument('--batch_size', default=32)
 
@@ -38,7 +38,7 @@ cgan = ConditionalGAN(noise_unit=args.noise_units,
                       image_size=args.image_size,
                       dim=args.dim,
                       class_number=len(categories),
-                      cgan=args.cgan,
+                      acgan=args.cgan,
                       batch_size=args.batch_size,
                       loss_mode=args.loss_mode,
                       penalty_mode=args.penalty_mode,
@@ -53,4 +53,4 @@ cgan.build_discriminator(name='D')
 cgan.compile(0.0002, 0.0002)
 for i in range(args.num_epoch):
     print('epoch {0} / {1}'.format(i, args.num_epoch))
-    cgan.train_epoch(batch_num=500, train_gen=train_gen)
+    cgan.train_epoch(batch_num=1000, train_gen=train_gen)
