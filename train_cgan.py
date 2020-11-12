@@ -50,7 +50,7 @@ b = next(a)
 cgan.build_generator(name='G')
 cgan.build_discriminator(name='D')
 
-cgan.compile(0.0002, 0.0002)
+cgan.compile(0.0001, 0.0001)
 for i in range(args.num_epoch):
     print('epoch {0} / {1}'.format(i, args.num_epoch))
     cgan.train_epoch(batch_num=1000, train_gen=train_gen)

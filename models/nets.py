@@ -23,12 +23,10 @@ def dense_layer(input_layer, units, activation, batch_norm=True, **kwargs):
     return x
 
 
-def conv_layer(x, filters, kernel_size, activation, strides=(1, 1), padding='same', batch_norm=False, **kwargs):
+def conv_layer(x, filters, kernel_size, batch_norm, strides=(1, 1), padding='same',  **kwargs):
     x = Conv2D(filters, kernel_size, strides=strides, padding=padding, **kwargs)(x)
-    if batch_norm:
-        x = BatchNormalization(momentum=0.8)(x)
-
-    x = activation_layer(x, activation)
+    x = batch_norm()(x)
+    x = LeakyReLU(alpha=0.2)(x)
     return x
 
 
@@ -44,7 +42,26 @@ def conv_transpose_layer(x, filters, kernel_size, activation, strides=1, padding
     return x
 
 
-def res_block(input_tensor, filters, stride, activation, block_name, identity_block, **kwargs):
+def res_block_down_sampling(input_tensor, filters, stride, norm, identity_block):
+    x = short_cut = input_tensor
+
+    x = Conv2D(filters, (1, 1), strides=stride, padding='same')(x)
+    x = norm()(x)
+    x = LeakyReLU(alpha=0.2)(x)
+
+    x = Conv2D(filters, (3, 3), strides=(1, 1), padding='same')(x)
+    x = norm()(x)
+
+    if not identity_block:
+        short_cut = Conv2D(filters, (1, 1), strides=stride, padding='same')(short_cut)
+        short_cut = norm()(short_cut)
+
+    x = Add()([x, short_cut])
+    x = LeakyReLU(alpha=0.2)(x)
+    return x
+
+
+def res_block(input_tensor, filters, stride, activation, block_name, identity_block, norm, **kwargs):
     """
     Residual block for ResNet
     :param activation:
@@ -186,7 +203,7 @@ def bn_block(input_tensor, filters, stride, activation, block_name, identity_blo
     return x
 
 
-def fast_up_transpose_conv(x, filters, activation):
+def fast_up_transpose_conv(x, filters, batch_norm):
     a = conv_transpose_layer(x, filters, (3, 3), activation=activation, batch_norm=False)
     b = conv_transpose_layer(x, filters, (2, 3), activation=activation, batch_norm=False)
     c = conv_transpose_layer(x, filters, (3, 2), activation=activation, batch_norm=False)
@@ -211,11 +228,11 @@ def fast_up_transpose_projection(input_tensor, filters, activation):
     return x
 
 
-def fast_upconv(x, filters, activation):
-    a = conv_layer(x, filters, (3, 3), activation=activation, batch_norm=False)
-    b = conv_layer(x, filters, (2, 3), activation=activation, batch_norm=False)
-    c = conv_layer(x, filters, (3, 2), activation=activation, batch_norm=False)
-    d = conv_layer(x, filters, (2, 2), activation=activation, batch_norm=False)
+def fast_upconv(x, filters, norm):
+    a = conv_layer(x, filters, (3, 3), batch_norm=norm)
+    b = conv_layer(x, filters, (2, 3), batch_norm=norm)
+    c = conv_layer(x, filters, (3, 2), batch_norm=norm)
+    d = conv_layer(x, filters, (2, 2), batch_norm=norm)
     left = interleave([a, b], axis=1)  # columns
     right = interleave([c, d], axis=1)  # columns
     output = interleave([left, right], axis=2)  # rows
@@ -223,16 +240,13 @@ def fast_upconv(x, filters, activation):
     return output
 
 
-def fast_up_projection(input_tensor, filters, activation):
-    shortcut = fast_upconv(input_tensor, filters, activation)
-    x = fast_upconv(input_tensor, filters, activation)
-    x = conv_layer(x, filters, (3, 3), activation=activation, batch_norm=False)
+def fast_up_projection(input_tensor, filters, norm):
+    shortcut = fast_upconv(input_tensor, filters, norm)
+    x = fast_upconv(input_tensor, filters, norm)
+    x = conv_layer(x, filters, (3, 3), batch_norm=norm)
 
     x = Add()([x, shortcut])
-    if activation == 'LeakyReLU':
-        x = LeakyReLU(alpha=0.1)(x)
-    else:
-        x = Activation(activation)(x)
+    x = LeakyReLU(alpha=0.2)(x)
     return x
 
 

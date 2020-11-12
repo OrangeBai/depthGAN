@@ -44,36 +44,40 @@ class ConditionalGAN:
         Norm = get_norm_layer(norm)
         n_up_samplings = int(np.log2(self.image_size) - np.log2(self.input_size))
 
-        h = inputs = Input(shape=(self.noise_units,))
+        x = inputs = Input(shape=(self.noise_units,))
 
         if self.cgan:
             label_input = Input((1,))
             label_embedding = Flatten()(Embedding(self.class_number, self.noise_units)(label_input))
             inputs = [inputs, label_input]
-            h = multiply([h, label_embedding])
+            x = multiply([x, label_embedding])
 
-        h = Reshape((1, 1, self.noise_units))(h)
+        x = Reshape((1, 1, self.noise_units))(x)
         # 1: 1x1 -> 4x4
         d = min(self.dim * 2 ** (n_up_samplings - 1), self.dim * 8)
-        h = Conv2DTranspose(d, self.input_size, strides=1, padding='valid', use_bias=False)(h)
-        h = Norm()(h)
-        h = tf.nn.relu(h)  # or h = keras.layers.ReLU()(h)
+        x = Conv2DTranspose(d, self.input_size, strides=1, padding='valid', use_bias=False)(x)
+        x = Norm()(x)
+        x = tf.nn.relu(x)  # or h = keras.layers.ReLU()(h)
 
         # 2: upsamplings, 4x4 -> 8x8 -> 16x16 -> ...
         for i in range(n_up_samplings - 1):
             d = min(self.dim * 2 ** (n_up_samplings - 2 - i), self.dim * 8)
-            h = Conv2DTranspose(d, 4, strides=2, padding='same', use_bias=False)(h)
-            h = Norm()(h)
-            h = tf.nn.relu(h)  # or h = keras.layers.ReLU()(h)
+            x = fast_up_projection(x, d, Norm)
+            x = res_block_down_sampling(x, d, 1, Norm, True)
+
+
+            # h = Conv2DTranspose(d, 4, strides=2, padding='same', use_bias=False)(h)
+            # h = Norm()(h)
+            # h = tf.nn.relu(h)  # or h = keras.layers.ReLU()(h)
 
             # h = Conv2DTranspose(d, 4, strides=1, padding='same', use_bias=False)(h)
             # h = Norm()(h)
             # h = tf.nn.relu(h)  # or h = keras.layers.ReLU()(h)
 
-        h = Conv2DTranspose(3, 4, strides=2, padding='same')(h)
-        h = tf.tanh(h)  # or h = keras.layers.Activation('tanh')(h)
+        h = Conv2DTranspose(3, 4, strides=2, padding='same')(x)
+        x = tf.tanh(x)  # or h = keras.layers.Activation('tanh')(h)
 
-        self.generator = Model(inputs=inputs, outputs=h, name=name)
+        self.generator = Model(inputs=inputs, outputs=x, name=name)
 
     def get_norm_mode(self):
         d_norm = 'batch_norm'
@@ -102,13 +106,12 @@ class ConditionalGAN:
 
         for i in range(n_down_samplings - 1):
             d = min(self.dim * 2 ** (i + 1), self.dim * 8)
-            x = Conv2D(d, 4, strides=2, padding='same', use_bias=False)(x)
-            x = Norm()(x)
-            x = tf.nn.leaky_relu(x, alpha=0.2)  # or h = keras.layers.LeakyReLU(alpha=0.2)(h)
-
-            # x = Conv2D(d, 4, strides=1, padding='same', use_bias=False)(x)
+            x = res_block_down_sampling(x, d, 2, Norm, False)
+            x = res_block_down_sampling(x, d, 1, Norm, True)
+            # x = Conv2D(d, 4, strides=2, padding='same', use_bias=False)(x)
             # x = Norm()(x)
             # x = tf.nn.leaky_relu(x, alpha=0.2)  # or h = keras.layers.LeakyReLU(alpha=0.2)(h)
+
 
         # if self.cgan:
         #     label_input = Input((1,))
@@ -177,11 +180,13 @@ class ConditionalGAN:
             train = q.get()
             if train is None:
                 break
-            d_loss_dict = self.train_D(train)
+            x_real, label = train
+            one_hot_label = tf.keras.utils.to_categorical(label, self.class_number)
+            d_loss_dict = self.train_D([x_real, label, one_hot_label])
             tl.summary(d_loss_dict, step=self.d_optimizer.iterations, name='D_losses')
 
             if self.d_optimizer.iterations.numpy() % 5 == 0:
-                g_loss_dict = self.train_G(train)
+                g_loss_dict = self.train_G([x_real, label, one_hot_label])
                 tl.summary(g_loss_dict, step=self.g_optimizer.iterations, name='G_losses')
 
             # sample
@@ -189,18 +194,17 @@ class ConditionalGAN:
                 self.test_model(r'F:\Code\Computer Science\depthGAN\test_images')
 
     @tf.function
-    def train_G(self, x_real):
-        real_image, label = x_real
-        label = tf.keras.utils.to_categorical(label, self.class_number)
+    def train_G(self, train_data):
+        x_real, label, one_hot_label = train_data
         with tf.GradientTape() as t:
             if self.cgan:
-                x_fake = self.sample_fake(x_real[1], False)
+                x_fake = self.sample_fake(label, False)
             else:
                 x_fake = self.sample_fake()
             pred_fake_res = self.discriminator(x_fake, training=True)
 
             if self.cgan:
-                g_loss = self.g_loss_fn(pred_fake_res[0]) + self.classifier_loss(label, pred_fake_res[1])
+                g_loss = self.g_loss_fn(pred_fake_res[0]) + self.classifier_loss(one_hot_label, pred_fake_res[1])
             else:
                 g_loss = self.g_loss_fn(pred_fake_res[0])
 
@@ -210,23 +214,22 @@ class ConditionalGAN:
         return {'g_loss': g_loss}
 
     @tf.function
-    def train_D(self, x_real):
-        real_image, label = x_real
-        label = tf.keras.utils.to_categorical(label, self.class_number)
+    def train_D(self, train_data):
+        x_real, label, one_hot_label = train_data
         with tf.GradientTape() as t:
             if self.cgan:
-                x_fake = self.sample_fake(x_real[1], with_label=False)
+                x_fake = self.sample_fake(label, with_label=False)
             else:
                 x_fake = self.sample_fake()
 
-            pred_res_real = self.discriminator(real_image, training=True)
+            pred_res_real = self.discriminator(x_real, training=True)
             pred_res_fake = self.discriminator(x_fake, training=True)
 
             if self.cgan:
                 x_real_d_logistic, cls_real_d_sigmoid = pred_res_real
                 x_fake_d_logistic, cls_fake_d_sigmoid = pred_res_fake
-                cls_real_loss = self.classifier_loss(label, cls_real_d_sigmoid)
-                cls_fake_loss = self.classifier_loss(label, cls_fake_d_sigmoid)
+                cls_real_loss = self.classifier_loss(one_hot_label, cls_real_d_sigmoid)
+                cls_fake_loss = self.classifier_loss(one_hot_label, cls_fake_d_sigmoid)
                 d_loss = cls_real_loss + cls_fake_loss
             else:
                 x_real_d_logistic = pred_res_real
@@ -235,7 +238,7 @@ class ConditionalGAN:
 
             x_real_d_loss, x_fake_d_loss = self.d_loss_fn(x_real_d_logistic, x_fake_d_logistic)
 
-            gp = gradient_penalty(functools.partial(self.discriminator, training=True), real_image, x_fake,
+            gp = gradient_penalty(functools.partial(self.discriminator, training=True), x_real, x_fake,
                                   mode=self.penalty_mode, cgan=self.cgan)
 
             d_loss = d_loss + (x_real_d_loss + x_fake_d_loss) + gp * self.penalty_weight
