@@ -36,6 +36,9 @@ class ConditionalGAN:
         self.d_optimizer = None
 
         self.cgan = acgan
+        self.patch = True
+
+        self.cur_epoch = tf.Variable(initial_value=0, trainable=False, dtype=tf.int64)
 
     def build_generator(self,
                         norm='batch_norm',
@@ -61,20 +64,19 @@ class ConditionalGAN:
 
         # 2: upsamplings, 4x4 -> 8x8 -> 16x16 -> ...
         for i in range(n_up_samplings - 1):
-            d = min(self.dim * 2 ** (n_up_samplings - 2 - i), self.dim * 8)
-            x = fast_up_projection(x, d, Norm)
-            x = res_block_down_sampling(x, d, 1, Norm, True)
+            # d = min(self.dim * 2 ** (n_up_samplings - 2 - i), self.dim * 8)
+            # x = fast_up_projection(x, d, Norm)
+            # x = res_block_down_sampling(x, d, 1, Norm, True)
 
+            x = Conv2DTranspose(d, 4, strides=2, padding='same', use_bias=False)(x)
+            x = Norm()(x)
+            x = tf.nn.relu(x)  # or x = keras.layers.ReLU()(x)
 
-            # h = Conv2DTranspose(d, 4, strides=2, padding='same', use_bias=False)(h)
-            # h = Norm()(h)
-            # h = tf.nn.relu(h)  # or h = keras.layers.ReLU()(h)
+            x = Conv2DTranspose(d, 4, strides=1, padding='same', use_bias=False)(x)
+            x = Norm()(x)
+            x = tf.nn.relu(x)  # or x = keras.layers.ReLU()(x)
 
-            # h = Conv2DTranspose(d, 4, strides=1, padding='same', use_bias=False)(h)
-            # h = Norm()(h)
-            # h = tf.nn.relu(h)  # or h = keras.layers.ReLU()(h)
-
-        h = Conv2DTranspose(3, 4, strides=2, padding='same')(x)
+        x = Conv2DTranspose(3, 4, strides=2, padding='same')(x)
         x = tf.tanh(x)  # or h = keras.layers.Activation('tanh')(h)
 
         self.generator = Model(inputs=inputs, outputs=x, name=name)
@@ -108,10 +110,10 @@ class ConditionalGAN:
             d = min(self.dim * 2 ** (i + 1), self.dim * 8)
             x = res_block_down_sampling(x, d, 2, Norm, False)
             x = res_block_down_sampling(x, d, 1, Norm, True)
+
             # x = Conv2D(d, 4, strides=2, padding='same', use_bias=False)(x)
             # x = Norm()(x)
             # x = tf.nn.leaky_relu(x, alpha=0.2)  # or h = keras.layers.LeakyReLU(alpha=0.2)(h)
-
 
         # if self.cgan:
         #     label_input = Input((1,))
@@ -122,7 +124,10 @@ class ConditionalGAN:
         #     x = multiply([x, label_embedding])
 
         # 2: logistic
-        realness = Conv2D(1, self.input_size, strides=1, padding='valid')(x)
+        if self.patch:
+            realness = Conv2D(1, self.input_size, strides=1, padding='same')(x)
+        else:
+            realness = Conv2D(1, self.input_size, strides=1, padding='valid')(x)
         if self.cgan:
             cls = Conv2D(self.class_number, self.input_size, padding='valid', activation=sigmoid)(x)
             cls = Flatten()(cls)
@@ -136,7 +141,7 @@ class ConditionalGAN:
         self.g_optimizer = Adam(init_rate_d, beta_1=0.5)
         self.d_optimizer = Adam(init_rate_g, beta_1=0.5)
 
-    def train_epoch(self, batch_num, train_gen, *args, **kwargs):
+    def train_epoch(self, batch_num, train_gen, g_per_d, *args, **kwargs):
         start_time = time.time()
 
         train_res_names = ['real_patch_d', 'real_img_d',
@@ -147,7 +152,7 @@ class ConditionalGAN:
         q = Queue(10)
 
         producer = Thread(target=self.producer, args=(q, batch_num, train_gen))
-        consumer = Thread(target=self.consumer, args=(q, batch_num))
+        consumer = Thread(target=self.consumer, args=(q, batch_num, g_per_d))
         producer.start()
         consumer.start()
         producer.join()
@@ -162,19 +167,22 @@ class ConditionalGAN:
 
         return train_res, train_res_names
 
-    def test_model(self, test_dir):
+    def test_model(self, output_dir, test_per_class=10):
+        test_dir = os.path.join(output_dir, 'test_images')
+        if not os.path.exists(test_dir):
+            os.makedirs(test_dir)
         if self.cgan:
-            z = tf.random.normal(shape=(self.class_number, self.noise_units))
-            label = np.expand_dims(np.linspace(0, self.class_number - 1, self.class_number).astype('int'), axis=1)
+            z = tf.random.normal(shape=(test_per_class * self.class_number, self.noise_units))
+            label = np.expand_dims(np.array(test_per_class * [i for i in range(self.class_number)]), axis=1)
             z = [z, label]
         else:
-            z = tf.random.normal(shape=(100, self.noise_units))
+            z = tf.random.normal(shape=(test_per_class ** 2, self.noise_units))
         x_fake = self.generator(z, training=True)
-        img = im.immerge(x_fake, n_rows=10).squeeze()
+        img = im.immerge(x_fake, n_rows=test_per_class).squeeze()
         im.imwrite(img, os.path.join(test_dir, 'iter-%09d.jpg' % self.g_optimizer.iterations.numpy()))
         return
 
-    def consumer(self, q, batch_num):
+    def consumer(self, q, batch_num, g_per_d):
 
         for _ in tqdm.tqdm(range(batch_num), desc='Inner Epoch Loop', total=batch_num):
             train = q.get()
@@ -185,13 +193,10 @@ class ConditionalGAN:
             d_loss_dict = self.train_D([x_real, label, one_hot_label])
             tl.summary(d_loss_dict, step=self.d_optimizer.iterations, name='D_losses')
 
-            if self.d_optimizer.iterations.numpy() % 5 == 0:
+            if self.d_optimizer.iterations.numpy() % g_per_d == 0:
                 g_loss_dict = self.train_G([x_real, label, one_hot_label])
                 tl.summary(g_loss_dict, step=self.g_optimizer.iterations, name='G_losses')
 
-            # sample
-            if self.g_optimizer.iterations.numpy() % 100 == 0:
-                self.test_model(r'F:\Code\Computer Science\depthGAN\test_images')
 
     @tf.function
     def train_G(self, train_data):
@@ -267,3 +272,20 @@ class ConditionalGAN:
             z = tf.random.normal(shape=(self.batch_size, self.noise_units))
             x_fake = self.generator(z, training=True)
             return x_fake
+
+    def set_ckpt(self, path):
+        self.checkpoint = tl.Checkpoint(dict(G=self.generator,
+                                             D=self.discriminator,
+                                             G_optimizer=self.g_optimizer,
+                                             D_optimizer=self.d_optimizer,
+                                             ep_cnt=self.cur_epoch),
+                                        os.path.join(path, 'checkpoints'),
+                                        max_to_keep=5)
+        try:  # restore checkpoint including the epoch counter
+            self.checkpoint.restore().assert_existing_objects_matched()
+        except Exception as e:
+            print(e)
+
+    def save_ckpt(self, epoch):
+        self.cur_epoch.assign_add(1)
+        self.checkpoint.save(epoch)
