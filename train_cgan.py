@@ -80,6 +80,6 @@ for epoch in range(args.num_epoch):
     if epoch < cur_epoch:
         continue
     print('epoch {0} / {1}'.format(epoch, args.num_epoch))
-    cgan.train_epoch(batch_num=10, train_gen=train_gen, g_per_d=args.g_per_d)
+    cgan.train_epoch(batch_num=2000, train_gen=train_gen, g_per_d=args.g_per_d)
     cgan.test_model(output_dir, args.test_per_cls)
     cgan.save_ckpt(epoch)

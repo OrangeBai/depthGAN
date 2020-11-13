@@ -107,13 +107,13 @@ class ConditionalGAN:
         x = tf.nn.leaky_relu(x, alpha=0.2)  # or keras.layers.LeakyReLU(alpha=0.2)(h)
 
         for i in range(n_down_samplings - 1):
-            d = min(self.dim * 2 ** (i + 1), self.dim * 8)
-            x = res_block_down_sampling(x, d, 2, Norm, False)
-            x = res_block_down_sampling(x, d, 1, Norm, True)
+            # d = min(self.dim * 2 ** (i + 1), self.dim * 8)
+            # x = res_block_down_sampling(x, d, 2, Norm, False)
+            # x = res_block_down_sampling(x, d, 1, Norm, True)
 
-            # x = Conv2D(d, 4, strides=2, padding='same', use_bias=False)(x)
-            # x = Norm()(x)
-            # x = tf.nn.leaky_relu(x, alpha=0.2)  # or h = keras.layers.LeakyReLU(alpha=0.2)(h)
+            x = Conv2D(d, 4, strides=2, padding='same', use_bias=False)(x)
+            x = Norm()(x)
+            x = tf.nn.leaky_relu(x, alpha=0.2)  # or h = keras.layers.LeakyReLU(alpha=0.2)(h)
 
         # if self.cgan:
         #     label_input = Input((1,))
