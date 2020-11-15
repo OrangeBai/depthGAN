@@ -15,7 +15,7 @@ parser.add_argument('--test_per_cls', default=5)
 parser.add_argument('--noise_units', default=128)
 parser.add_argument('--image_size', default=32)
 parser.add_argument('--input_size', default=4)
-parser.add_argument('--dim', default=32)
+parser.add_argument('--dim', default=64)
 
 parser.add_argument('--loss_mode', default='gan')
 parser.add_argument('--penalty_mode', default='none')

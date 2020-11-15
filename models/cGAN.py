@@ -114,7 +114,7 @@ class ConditionalGAN:
             # if i == n_down_samplings - 2:
             #     x = enhanced_sigmoid(1, 3)(x)  # or x = keras.layers.ReLU()(x)
             # else:
-            #     x = tf.nn.leaky_relu(x, alpha=0.2)  # or keras.layers.LeakyReLU(alpha=0.2)(h)
+            #     x = relu(x)
 
         # if self.cgan:
         #     label_input = Input((1,))
