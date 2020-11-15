@@ -15,7 +15,7 @@ parser.add_argument('--test_per_cls', default=5)
 parser.add_argument('--noise_units', default=128)
 parser.add_argument('--image_size', default=32)
 parser.add_argument('--input_size', default=4)
-parser.add_argument('--dim', default=64)
+parser.add_argument('--dim', default=32)
 
 parser.add_argument('--loss_mode', default='gan')
 parser.add_argument('--penalty_mode', default='none')
@@ -24,10 +24,10 @@ parser.add_argument('--g_per_d', default=1)
 parser.add_argument('--cgan', default=False)
 parser.add_argument('--patch', default=False)
 
-parser.add_argument('--experiment_name', default='all_esig')
+parser.add_argument('--experiment_name', default='none')
 parser.add_argument('--dataset', default='cifar10')
 parser.add_argument('--category', default='vehicle')
-parser.add_argument('--clear', default=False)
+parser.add_argument('--clear', default=True)
 
 args = parser.parse_args()
 # output_dir
@@ -88,7 +88,7 @@ for epoch in range(args.num_epoch):
     if epoch < cur_epoch:
         continue
     print('epoch {0} / {1}'.format(epoch, args.num_epoch))
-    cgan.train_epoch(batch_num=2000, train_gen=train_gen, g_per_d=args.g_per_d)
+    cgan.train_epoch(batch_num=1000, train_gen=train_gen, g_per_d=args.g_per_d)
     cgan.test_model(output_dir, args.test_per_cls)
     cgan.save_ckpt(epoch)
 

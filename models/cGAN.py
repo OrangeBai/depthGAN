@@ -60,17 +60,17 @@ class ConditionalGAN:
         d = min(self.dim * 2 ** (n_up_samplings - 1), self.dim * 8)
         x = Conv2DTranspose(d, self.input_size, strides=1, padding='valid', use_bias=False)(x)
         x = Norm()(x)
-        x = tf.nn.relu(x)  # or h = keras.layers.ReLU()(h)
+        x = relu(x)
 
         # 2: upsamplings, 4x4 -> 8x8 -> 16x16 -> ...
         for i in range(n_up_samplings - 1):
             x = Conv2DTranspose(d, 4, strides=2, padding='same', use_bias=False)(x)
             x = Norm()(x)
+            x = relu(x)  # or keras.layers.LeakyReLU(alpha=0.2)(h)
             # if i == n_up_samplings - 2:
             #     x = enhanced_sigmoid(1, 3)(x)  # or x = keras.layers.ReLU()(x)
             # else:
             #     x = tf.nn.leaky_relu(x, alpha=0.2)  # or keras.layers.LeakyReLU(alpha=0.2)(h)
-            x = enhanced_sigmoid(1, 3)(x)  # or x = keras.layers.ReLU()(x)
 
             # x = tf.nn.leaky_relu(x, alpha=0.2)  # or keras.layers.LeakyReLU(alpha=0.2)(h)
 
@@ -102,20 +102,20 @@ class ConditionalGAN:
 
         # 1: downsamplings, ... -> 16x16 -> 8x8 -> 4x4
         x = Conv2D(self.dim, 4, strides=2, padding='same')(x)
-        x = tf.nn.leaky_relu(x, alpha=0.2)  # or keras.layers.LeakyReLU(alpha=0.2)(h)
+
+        x = relu(x)
 
         for i in range(n_down_samplings - 1):
             d = min(self.dim * 2 ** (i + 1), self.dim * 8)
-            # x = res_block_down_sampling(x, d, 2, Norm, False)
-            # x = res_block_down_sampling(x, d, 1, Norm, True)
 
             x = Conv2D(d, 4, strides=2, padding='same', use_bias=False)(x)
             x = Norm()(x)
+            x = relu(x)
             # if i == n_down_samplings - 2:
             #     x = enhanced_sigmoid(1, 3)(x)  # or x = keras.layers.ReLU()(x)
             # else:
             #     x = tf.nn.leaky_relu(x, alpha=0.2)  # or keras.layers.LeakyReLU(alpha=0.2)(h)
-            x = enhanced_sigmoid(1, 3)(x)  # or x = keras.layers.ReLU()(x)
+
         # if self.cgan:
         #     label_input = Input((1,))
         #     output_units = x.shape[1] * x.shape[2] * x.shape[3]
