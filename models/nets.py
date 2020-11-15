@@ -2,6 +2,8 @@ from tensorflow.keras.layers import *
 from tensorflow.keras.activations import *
 import tensorflow as tf
 import numpy as np
+from tensorflow.python.keras import backend as K
+from tensorflow.python.keras.layers import Layer
 
 
 def activation_layer(x, activation):
@@ -23,7 +25,7 @@ def dense_layer(input_layer, units, activation, batch_norm=True, **kwargs):
     return x
 
 
-def conv_layer(x, filters, kernel_size, batch_norm, strides=(1, 1), padding='same',  **kwargs):
+def conv_layer(x, filters, kernel_size, batch_norm, strides=(1, 1), padding='same', **kwargs):
     x = Conv2D(filters, kernel_size, strides=strides, padding=padding, **kwargs)(x)
     x = batch_norm()(x)
     x = LeakyReLU(alpha=0.2)(x)
@@ -203,16 +205,17 @@ def bn_block(input_tensor, filters, stride, activation, block_name, identity_blo
     return x
 
 
-def fast_up_transpose_conv(x, filters, batch_norm):
-    a = conv_transpose_layer(x, filters, (3, 3), activation=activation, batch_norm=False)
-    b = conv_transpose_layer(x, filters, (2, 3), activation=activation, batch_norm=False)
-    c = conv_transpose_layer(x, filters, (3, 2), activation=activation, batch_norm=False)
-    d = conv_transpose_layer(x, filters, (2, 2), activation=activation, batch_norm=False)
-    left = interleave([a, b], axis=1)  # columns
-    right = interleave([c, d], axis=1)  # columns
-    output = interleave([left, right], axis=2)  # rows
-
-    return output
+#
+# def fast_up_transpose_conv(x, filters, batch_norm):
+#     a = conv_transpose_layer(x, filters, (3, 3), batch_norm=False)
+#     b = conv_transpose_layer(x, filters, (2, 3), batch_norm=False)
+#     c = conv_transpose_layer(x, filters, (3, 2), batch_norm=False)
+#     d = conv_transpose_layer(x, filters, (2, 2), batch_norm=False)
+#     left = interleave([a, b], axis=1)  # columns
+#     right = interleave([c, d], axis=1)  # columns
+#     output = interleave([left, right], axis=2)  # rows
+#
+#     return output
 
 
 def fast_up_transpose_projection(input_tensor, filters, activation):
@@ -276,3 +279,22 @@ def get_norm_layer(norm):
     #     return tfa.layers.InstanceNormalization
     elif norm == 'layer_norm':
         return LayerNormalization
+
+
+def penalized_tanh(alpha):
+    def activation(x):
+        pos = K.tanh(K.relu(x))
+        neg = -alpha * K.tanh(K.relu(-x))
+        return pos + neg
+
+    return activation
+
+
+def enhanced_sigmoid(alpha, beta):
+    alpha = alpha + beta * np.random.rand()
+    beta = 4 / alpha
+
+    def activation(x):
+        return alpha * K.sigmoid(beta * x) - alpha / 2
+
+    return activation

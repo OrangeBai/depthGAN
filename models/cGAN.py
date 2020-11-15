@@ -13,7 +13,7 @@ from tensorflow.keras.losses import categorical_crossentropy
 
 class ConditionalGAN:
     def __init__(self, noise_unit, input_size, image_size, dim, class_number, acgan, penalty_mode,
-                 penalty_weight, batch_size, loss_mode):
+                 penalty_weight, batch_size, loss_mode, patch):
         super().__init__()
         self.noise_units = noise_unit  # number of white noise units
         self.input_size = input_size  # size of generator convolutional input
@@ -36,7 +36,7 @@ class ConditionalGAN:
         self.d_optimizer = None
 
         self.cgan = acgan
-        self.patch = True
+        self.patch = patch
 
         self.cur_epoch = tf.Variable(initial_value=0, trainable=False, dtype=tf.int64)
 
@@ -64,17 +64,15 @@ class ConditionalGAN:
 
         # 2: upsamplings, 4x4 -> 8x8 -> 16x16 -> ...
         for i in range(n_up_samplings - 1):
-            # d = min(self.dim * 2 ** (n_up_samplings - 2 - i), self.dim * 8)
-            # x = fast_up_projection(x, d, Norm)
-            # x = res_block_down_sampling(x, d, 1, Norm, True)
-
             x = Conv2DTranspose(d, 4, strides=2, padding='same', use_bias=False)(x)
             x = Norm()(x)
-            x = tf.nn.relu(x)  # or x = keras.layers.ReLU()(x)
+            # if i == n_up_samplings - 2:
+            #     x = enhanced_sigmoid(1, 3)(x)  # or x = keras.layers.ReLU()(x)
+            # else:
+            #     x = tf.nn.leaky_relu(x, alpha=0.2)  # or keras.layers.LeakyReLU(alpha=0.2)(h)
+            x = enhanced_sigmoid(1, 3)(x)  # or x = keras.layers.ReLU()(x)
 
-            x = Conv2DTranspose(d, 4, strides=1, padding='same', use_bias=False)(x)
-            x = Norm()(x)
-            x = tf.nn.relu(x)  # or x = keras.layers.ReLU()(x)
+            # x = tf.nn.leaky_relu(x, alpha=0.2)  # or keras.layers.LeakyReLU(alpha=0.2)(h)
 
         x = Conv2DTranspose(3, 4, strides=2, padding='same')(x)
         x = tf.tanh(x)  # or h = keras.layers.Activation('tanh')(h)
@@ -113,8 +111,11 @@ class ConditionalGAN:
 
             x = Conv2D(d, 4, strides=2, padding='same', use_bias=False)(x)
             x = Norm()(x)
-            x = tf.nn.leaky_relu(x, alpha=0.2)  # or h = keras.layers.LeakyReLU(alpha=0.2)(h)
-
+            # if i == n_down_samplings - 2:
+            #     x = enhanced_sigmoid(1, 3)(x)  # or x = keras.layers.ReLU()(x)
+            # else:
+            #     x = tf.nn.leaky_relu(x, alpha=0.2)  # or keras.layers.LeakyReLU(alpha=0.2)(h)
+            x = enhanced_sigmoid(1, 3)(x)  # or x = keras.layers.ReLU()(x)
         # if self.cgan:
         #     label_input = Input((1,))
         #     output_units = x.shape[1] * x.shape[2] * x.shape[3]
@@ -182,6 +183,21 @@ class ConditionalGAN:
         im.imwrite(img, os.path.join(test_dir, 'iter-%09d.jpg' % self.g_optimizer.iterations.numpy()))
         return
 
+    def test_batch(self, output_dir, test_size):
+        test_dir = os.path.join(output_dir, 'test_batch_images')
+        for i in range(test_size):
+            if not os.path.exists(test_dir):
+                os.makedirs(test_dir)
+
+            z = tf.random.normal(shape=(self.batch_size, self.noise_units))
+            x_fake = self.generator.predict_on_batch(z)
+            for idx, fake in enumerate(x_fake):
+                fake = 127.5 * (fake + 1)
+                img_path = os.path.join(test_dir, '{0}_{1}.jpg'.format(i, idx))
+                cv2.imwrite(img_path, fake)
+        return
+
+
     def consumer(self, q, batch_num, g_per_d):
 
         for _ in tqdm.tqdm(range(batch_num), desc='Inner Epoch Loop', total=batch_num):
@@ -196,7 +212,6 @@ class ConditionalGAN:
             if self.d_optimizer.iterations.numpy() % g_per_d == 0:
                 g_loss_dict = self.train_G([x_real, label, one_hot_label])
                 tl.summary(g_loss_dict, step=self.g_optimizer.iterations, name='G_losses')
-
 
     @tf.function
     def train_G(self, train_data):
@@ -239,7 +254,7 @@ class ConditionalGAN:
             else:
                 x_real_d_logistic = pred_res_real
                 x_fake_d_logistic = pred_res_fake
-                d_loss = tf.constant(0)
+                d_loss = tf.constant(0, dtype='float')
 
             x_real_d_loss, x_fake_d_loss = self.d_loss_fn(x_real_d_logistic, x_fake_d_logistic)
 
