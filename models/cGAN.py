@@ -66,13 +66,13 @@ class ConditionalGAN:
         for i in range(n_up_samplings - 1):
             x = Conv2DTranspose(d, 4, strides=2, padding='same', use_bias=False)(x)
             x = Norm()(x)
-            x = relu(x)  # or keras.layers.LeakyReLU(alpha=0.2)(h)
+            # x = relu(x)  # or keras.layers.LeakyReLU(alpha=0.2)(h)
             # if i == n_up_samplings - 2:
             #     x = enhanced_sigmoid(1, 3)(x)  # or x = keras.layers.ReLU()(x)
             # else:
             #     x = tf.nn.leaky_relu(x, alpha=0.2)  # or keras.layers.LeakyReLU(alpha=0.2)(h)
 
-            # x = tf.nn.leaky_relu(x, alpha=0.2)  # or keras.layers.LeakyReLU(alpha=0.2)(h)
+            x = tf.nn.leaky_relu(x, alpha=0.2)  # or keras.layers.LeakyReLU(alpha=0.2)(h)
 
         x = Conv2DTranspose(3, 4, strides=2, padding='same')(x)
         x = tf.tanh(x)  # or h = keras.layers.Activation('tanh')(h)
@@ -110,7 +110,8 @@ class ConditionalGAN:
 
             x = Conv2D(d, 4, strides=2, padding='same', use_bias=False)(x)
             x = Norm()(x)
-            x = relu(x)
+            # x = relu(x)
+            x = tf.nn.leaky_relu(x, alpha=0.2)  # or keras.layers.LeakyReLU(alpha=0.2)(h)
             # if i == n_down_samplings - 2:
             #     x = enhanced_sigmoid(1, 3)(x)  # or x = keras.layers.ReLU()(x)
             # else:
@@ -196,7 +197,6 @@ class ConditionalGAN:
                 img_path = os.path.join(test_dir, '{0}_{1}.jpg'.format(i, idx))
                 cv2.imwrite(img_path, fake)
         return
-
 
     def consumer(self, q, batch_num, g_per_d):
 

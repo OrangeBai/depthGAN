@@ -2,18 +2,19 @@ from models.cGAN import *
 from pipeline.coco_parser import *
 from config import *
 from pipeline.cifar import *
+from pipeline.celeba import *
 import tensorflow as tf
 import argparse
 
 parser = argparse.ArgumentParser(description='Train cGAN')
 
-parser.add_argument('--num_epoch', default=60)
+parser.add_argument('--num_epoch', default=180)
 parser.add_argument('--num_class', default=10)
 parser.add_argument('--batch_size', default=32)
 parser.add_argument('--test_per_cls', default=5)
 
 parser.add_argument('--noise_units', default=128)
-parser.add_argument('--image_size', default=32)
+parser.add_argument('--image_size', default=64)
 parser.add_argument('--input_size', default=4)
 parser.add_argument('--dim', default=64)
 
@@ -24,10 +25,10 @@ parser.add_argument('--g_per_d', default=1)
 parser.add_argument('--cgan', default=False)
 parser.add_argument('--patch', default=False)
 
-parser.add_argument('--experiment_name', default='none')
-parser.add_argument('--dataset', default='cifar10')
+parser.add_argument('--experiment_name', default='none_2')
+parser.add_argument('--dataset', default='celeba')
 parser.add_argument('--category', default='vehicle')
-parser.add_argument('--clear', default=True)
+parser.add_argument('--clear', default=False)
 
 args = parser.parse_args()
 # output_dir
@@ -63,8 +64,10 @@ if args.dataset == 'COCO':
     categories = gen.categories
     train_gen = gen.balanced_gen('gan')
     args.num_class = len(categories)
-else:
+elif args.dataset =='cifar10':
     train_gen = cifar_10_gen(args.batch_size)
+else:
+    train_gen = celeba_gen(args.batch_size)
 
 cgan = ConditionalGAN(noise_unit=args.noise_units,
                       input_size=args.input_size,
