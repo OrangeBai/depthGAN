@@ -18,14 +18,14 @@ parser.add_argument('--image_size', default=64)
 parser.add_argument('--input_size', default=4)
 parser.add_argument('--dim', default=64)
 
-parser.add_argument('--loss_mode', default='wgan')
-parser.add_argument('--penalty_mode', default='wgan-gp')
+parser.add_argument('--loss_mode', default='gan')
+parser.add_argument('--penalty_mode', default='none')
 parser.add_argument('--penalty_weight', default=10)
 parser.add_argument('--g_per_d', default=5)
 parser.add_argument('--cgan', default=False)
 parser.add_argument('--patch', default=False)
 
-parser.add_argument('--experiment_name', default='none_2')
+parser.add_argument('--experiment_name', default='relu')
 parser.add_argument('--dataset', default='celeba')
 parser.add_argument('--category', default='vehicle')
 parser.add_argument('--clear', default=False)
@@ -64,7 +64,7 @@ if args.dataset == 'COCO':
     categories = gen.categories
     train_gen = gen.balanced_gen('gan')
     args.num_class = len(categories)
-elif args.dataset =='cifar10':
+elif args.dataset == 'cifar10':
     train_gen = cifar_10_gen(args.batch_size)
 else:
     train_gen = celeba_gen(args.batch_size)
@@ -84,7 +84,7 @@ cgan = ConditionalGAN(noise_unit=args.noise_units,
 cgan.build_generator(name='G')
 cgan.build_discriminator(name='D')
 
-cgan.compile(0.0001, 0.0001)
+cgan.compile(0.0002, 0.0002)
 cgan.set_ckpt(output_dir)
 cur_epoch = cgan.cur_epoch
 for epoch in range(args.num_epoch):
@@ -94,7 +94,7 @@ for epoch in range(args.num_epoch):
     cgan.train_epoch(batch_num=1000, train_gen=train_gen, g_per_d=args.g_per_d)
     cgan.test_model(output_dir, args.test_per_cls)
     cgan.save_ckpt(epoch)
-if args.dataset =='celeba':
+if args.dataset == 'celeba':
     cgan.test_batch(output_dir, 32, True)
 else:
     cgan.test_batch(output_dir, 32, False)
