@@ -18,10 +18,10 @@ parser.add_argument('--image_size', default=64)
 parser.add_argument('--input_size', default=4)
 parser.add_argument('--dim', default=64)
 
-parser.add_argument('--loss_mode', default='gan')
-parser.add_argument('--penalty_mode', default='none')
+parser.add_argument('--loss_mode', default='wgan')
+parser.add_argument('--penalty_mode', default='wgan-gp')
 parser.add_argument('--penalty_weight', default=10)
-parser.add_argument('--g_per_d', default=1)
+parser.add_argument('--g_per_d', default=5)
 parser.add_argument('--cgan', default=False)
 parser.add_argument('--patch', default=False)
 

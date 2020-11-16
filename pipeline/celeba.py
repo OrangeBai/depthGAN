@@ -22,6 +22,7 @@ def celeba_gen(batch_size, crop_size=120, resize=(64, 64)):
                 image = cv2.imread(image_path)
                 image = image[x1:x2, y1:y2, :]
                 image = cv2.resize(image, resize)
+                image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
                 images.append(image)
                 labels.append([1])
             images = np.array(images)
