@@ -8,7 +8,7 @@ import argparse
 
 parser = argparse.ArgumentParser(description='Train cGAN')
 
-parser.add_argument('--num_epoch', default=180)
+parser.add_argument('--num_epoch', default=60)
 parser.add_argument('--num_class', default=10)
 parser.add_argument('--batch_size', default=32)
 parser.add_argument('--test_per_cls', default=5)
@@ -94,5 +94,7 @@ for epoch in range(args.num_epoch):
     cgan.train_epoch(batch_num=1000, train_gen=train_gen, g_per_d=args.g_per_d)
     cgan.test_model(output_dir, args.test_per_cls)
     cgan.save_ckpt(epoch)
-
-cgan.test_batch(output_dir, 32)
+if args.dataset =='celeba':
+    cgan.test_batch(output_dir, 32, True)
+else:
+    cgan.test_batch(output_dir, 32, False)

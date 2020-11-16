@@ -8,7 +8,7 @@ image_names = os.listdir(celeba_dir)
 
 
 def celeba_gen(batch_size, crop_size=120, resize=(64, 64)):
-    batch_names = [image_names[idx:idx + batch_size] for idx in range(0, len(image_names), batch_size)]
+    batch_names = [image_names[idx:idx + batch_size] for idx in range(0, len(image_names), batch_size)][:-1]
     x1, y1 = (218 - crop_size) // 2, (178 - crop_size) // 2
     x2, y2 = x1 + crop_size, y1 + crop_size
 

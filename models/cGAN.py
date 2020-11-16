@@ -184,7 +184,7 @@ class ConditionalGAN:
         im.imwrite(img, os.path.join(test_dir, 'iter-%09d.jpg' % self.g_optimizer.iterations.numpy()))
         return
 
-    def test_batch(self, output_dir, test_size):
+    def test_batch(self, output_dir, test_size, convert=False):
         test_dir = os.path.join(output_dir, 'test_batch_images')
         for i in range(test_size):
             if not os.path.exists(test_dir):
@@ -195,6 +195,8 @@ class ConditionalGAN:
             for idx, fake in enumerate(x_fake):
                 fake = 127.5 * (fake + 1)
                 img_path = os.path.join(test_dir, '{0}_{1}.jpg'.format(i, idx))
+                if convert:
+                    fake = cv2.cvtColor(fake, cv2.COLOR_RGB2BGR)
                 cv2.imwrite(img_path, fake)
         return
 
